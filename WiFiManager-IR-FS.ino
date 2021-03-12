@@ -16,38 +16,38 @@ static const char FILE_NOT_FOUND[] PROGMEM = "FileNotFound";
 // Utils to return HTTP codes, and determine content-type
 
 void
-replyOK()
+reply_ok()
 {
     web_server.send(200, FPSTR(TEXT_PLAIN), "");
 }
 
 void
-replyOKWithMsg(String const& msg)
+reply_ok_with_msg(String const& msg)
 {
     web_server.send(200, FPSTR(TEXT_PLAIN), msg);
 }
 
 void
-replyOKJsonWithMsg(String const& msg)
+reply_ok_json_with_msg(String const& msg)
 {
     web_server.send(200, FPSTR(TEXT_JSON), msg);
 }
 
 void
-replyNotFound(String const& msg)
+reply_not_found(String const& msg)
 {
     web_server.send(404, FPSTR(TEXT_PLAIN), msg);
 }
 
 void
-replyBadRequest(String const& msg)
+reply_bad_request(String const& msg)
 {
     Serial.println(msg);
     web_server.send(400, FPSTR(TEXT_PLAIN), msg + "\r\n");
 }
 
 void
-replyServerError(String const& msg)
+reply_server_error(String const& msg)
 {
     Serial.println(msg);
     web_server.send(500, FPSTR(TEXT_PLAIN), msg + "\r\n");
@@ -67,6 +67,25 @@ check_for_unsupported_path(String const& filename)
         error += F("!TRAILING_SLASH! ");
     }
     return error;
+}
+
+/*
+   As some FS (e.g. LittleFS) delete the parent folder when the last child has been removed,
+   return the path of the closest parent still existing
+*/
+String
+last_existing_parent(String path)
+{
+    while (!path.isEmpty() && !SPIFFS.exists(path)) {
+        if (path.lastIndexOf('/') > 0) {
+            path = path.substring(0, path.lastIndexOf('/'));
+        }
+        else {
+            path.clear();  // No slash => the top folder does not exist
+        }
+    }
+    Serial.println(String("Last existing parent: ") + path);
+    return path;
 }
 
 }  // namespace
@@ -90,6 +109,8 @@ setup()
     SPIFFS.begin();
     web_server_init();
     SSDP_init();
+
+    // TODO: think about replacing all Web file operations with FTP server
 }
 
 void
@@ -188,11 +209,11 @@ web_server_init()
     // Load editor
     web_server.on(F("/edit"), HTTP_GET, []() {
         if (!handle_file_read(F("/edit.htm"))) {
-            replyNotFound(F("FileNotFound"));
+            reply_not_found(F("FileNotFound"));
         }
     });
     // Create file
-    web_server.on(F("/edit"), HTTP_PUT, handleFileCreate);
+    web_server.on(F("/edit"), HTTP_PUT, handle_file_create);
     //Удаление файла
     web_server.on(F("/edit"), HTTP_DELETE, handleFileDelete);
     // first callback is called after the request has ended with all parsed arguments
@@ -202,7 +223,7 @@ web_server_init()
         HTTP_POST,
         []() {
             Serial.println("LAMBIN /edit HTTP_POST");
-            replyOK();
+            reply_ok();
         },
         handle_file_upload);
 
@@ -210,7 +231,7 @@ web_server_init()
     // use it to load content from SPIFFS
     web_server.onNotFound([]() {
         if (!handle_file_read(web_server.uri())) {
-            replyNotFound(F("FileNotFound"));
+            reply_not_found(F("FileNotFound"));
         }
     });
 
@@ -223,7 +244,7 @@ web_server_init()
 
             web_server.sendHeader(F("Connection"), F("close"));
             web_server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-            replyOKWithMsg(Update.hasError() ? F("FAIL") : F("OK"));
+            reply_ok_with_msg(Update.hasError() ? F("FAIL") : F("OK"));
             ESP.restart();
         },
         []() {
@@ -310,7 +331,8 @@ handle_file_upload()
         filename     = String();
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
-        // DBG_OUTPUT_PORT.print("handle_file_upload Data: "); DBG_OUTPUT_PORT.println(upload.currentSize);
+        Serial.print("handle_file_upload Data: ");
+        Serial.println(upload.currentSize);
         if (fsUploadFile) {
             fsUploadFile.write(upload.buf, upload.currentSize);
         }
@@ -328,64 +350,105 @@ handleFileDelete()
     Serial.println("LAMBIN handleFileDelete()");
 
     if (web_server.args() == 0) {
-        replyServerError(F("BAD ARGS"));
+        reply_server_error(F("BAD ARGS"));
         return;
     }
     String path = web_server.arg(0);
 
     if (path == "/") {
-        replyServerError(F("BAD PATH"));
+        reply_server_error(F("BAD PATH"));
         return;
     }
     if (!SPIFFS.exists(path)) {
-        replyNotFound(F("FileNotFound"));
+        reply_not_found(F("FileNotFound"));
         return;
     }
     SPIFFS.remove(path);
-    replyOK();
+    reply_ok();
     path = String();
 }
 
 void
-handleFileCreate()
+handle_file_create()
 {
-    Serial.println("LAMBIN handleFileCreate()");
-
-    if (web_server.args() == 0) {
-        replyServerError(F("BAD ARGS"));
-        return;
+    if (!web_server.hasArg(F("path"))) {
+        reply_bad_request(F("PATH ARG MISSING"));
     }
-    String path = web_server.arg(0);
 
+    String path{web_server.arg("path")};
+    if (path.isEmpty()) {
+        return reply_bad_request(F("PATH ARG MISSING"));
+    }
+    if (check_for_unsupported_path(path).length() > 0) {
+        return reply_server_error(F("INVALID FILENAME"));
+    }
     if (path == "/") {
-        replyServerError(F("BAD PATH"));
-        return;
+        return reply_bad_request("BAD PATH");
     }
     if (SPIFFS.exists(path)) {
-        replyServerError(F("FILE EXISTS"));
-        return;
+        return reply_bad_request(F("FILE EXISTS"));
     }
-    File file = SPIFFS.open(path, "w");
-    if (file) {
-        file.close();
+
+    String src = web_server.arg("src");
+    if (src.isEmpty()) {
+        // No source specified: creation
+        Serial.println("handle_file_create: " + path);
+        if (path.endsWith("/")) {
+            // Create a folder
+            path.remove(path.length() - 1);
+            if (!SPIFFS.mkdir(path)) {
+                return reply_server_error(F("MKDIR FAILED"));
+            }
+        }
+        else {
+            // Create a file
+            File file = SPIFFS.open(path, "w");
+            if (file) {
+                file.write((const char*)0);
+                file.close();
+            }
+            else {
+                return reply_server_error(F("CREATE FAILED"));
+            }
+        }
+        if (path.lastIndexOf('/') > -1) {
+            path = path.substring(0, path.lastIndexOf('/'));
+        }
+        reply_ok_with_msg(path);
     }
     else {
-        replyServerError(F("CREATE FAILED"));
-        return;
+        // Source specified: rename
+        if (src == "/") {
+            return reply_bad_request("BAD SRC");
+        }
+        if (!SPIFFS.exists(src)) {
+            return reply_bad_request(F("SRC FILE NOT FOUND"));
+        }
+
+        Serial.println("handle_file_create: " + path + " from " + src);
+
+        if (path.endsWith("/")) {
+            path.remove(path.length() - 1);
+        }
+        if (src.endsWith("/")) {
+            src.remove(src.length() - 1);
+        }
+        if (!SPIFFS.rename(src, path)) {
+            return reply_server_error(F("RENAME FAILED"));
+        }
+        reply_ok_with_msg(last_existing_parent(src));
     }
-    replyOK();
-    path = String();
 }
 
 void
 handle_file_list()
 {
     if (!web_server.hasArg(F("dir"))) {
-        replyBadRequest(F("DIR ARG MISSING"));
+        reply_bad_request(F("DIR ARG MISSING"));
     }
     String path{web_server.arg("dir")};
     if (path != "/" && !SPIFFS.exists(path)) {
-        return replyBadRequest("BAD PATH");
+        return reply_bad_request("BAD PATH");
     }
 
     Serial.println("handle_file_list: " + path);
