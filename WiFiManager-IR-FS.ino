@@ -7,6 +7,7 @@
 namespace
 {
 ESP8266WebServer web_server(80);
+File             fsUploadFile;
 
 static const char TEXT_PLAIN[] PROGMEM     = "text/plain";
 static const char TEXT_JSON[] PROGMEM      = "text/json";
@@ -214,20 +215,16 @@ web_server_init()
     });
     // Create file
     web_server.on(F("/edit"), HTTP_PUT, handle_file_create);
-    //Удаление файла
+    // Delete file
     web_server.on(F("/edit"), HTTP_DELETE, handle_file_delete);
-    // first callback is called after the request has ended with all parsed arguments
-    // second callback handles file uploads at that location
-    web_server.on(
-        F("/edit"),
-        HTTP_POST,
-        []() {
-            Serial.println("LAMBIN /edit HTTP_POST");
-            reply_ok();
-        },
-        handle_file_upload);
 
-    // called when the url is not defined here
+    // Upload file
+    // - first callback is called after the request has ended with all parsed arguments
+    // - second callback handles file upload at that location
+    web_server.on(
+        F("/edit"), HTTP_POST, []() { reply_ok(); }, handle_file_upload);
+
+    // Called when the url is not defined here
     // use it to load content from SPIFFS
     web_server.onNotFound([]() {
         if (!handle_file_read(web_server.uri())) {
@@ -316,31 +313,38 @@ handle_file_read(String path)
 void
 handle_file_upload()
 {
-    if (web_server.uri() != F("/edit")) {
+    if (web_server.uri() != "/edit") {
         return;
     }
 
-    File        fsUploadFile;
     HTTPUpload& upload = web_server.upload();
     if (upload.status == UPLOAD_FILE_START) {
         String filename = upload.filename;
-        if (!filename.startsWith("/"))
+        // Make sure paths always start with "/"
+        if (!filename.startsWith("/")) {
             filename = "/" + filename;
-
+        }
+        Serial.println("handle_file_upload Name: " + filename);
         fsUploadFile = SPIFFS.open(filename, "w");
-        filename     = String();
+        if (!fsUploadFile) {
+            return reply_server_error(F("CREATE FAILED"));
+        }
+        Serial.println("Upload: START, filename: " + filename);
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
-        Serial.print("handle_file_upload Data: ");
-        Serial.println(upload.currentSize);
         if (fsUploadFile) {
-            fsUploadFile.write(upload.buf, upload.currentSize);
+            size_t bytesWritten = fsUploadFile.write(upload.buf, upload.currentSize);
+            if (bytesWritten != upload.currentSize) {
+                return reply_server_error(F("WRITE FAILED"));
+            }
         }
+        Serial.println("Upload: WRITE, Bytes: " + upload.currentSize);
     }
     else if (upload.status == UPLOAD_FILE_END) {
         if (fsUploadFile) {
             fsUploadFile.close();
         }
+        Serial.println("Upload: END, Size: " + upload.totalSize);
     }
 }
 
