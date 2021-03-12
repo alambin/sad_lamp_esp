@@ -52,6 +52,23 @@ replyServerError(String const& msg)
     Serial.println(msg);
     web_server.send(500, FPSTR(TEXT_PLAIN), msg + "\r\n");
 }
+
+String
+check_for_unsupported_path(String const& filename)
+{
+    String error;
+    if (!filename.startsWith("/")) {
+        error += F("!NO_LEADING_SLASH! ");
+    }
+    if (filename.indexOf("//") != -1) {
+        error += F("!DOUBLE_SLASH! ");
+    }
+    if (filename.endsWith("/")) {
+        error += F("!TRAILING_SLASH! ");
+    }
+    return error;
+}
+
 }  // namespace
 
 void
@@ -170,7 +187,6 @@ web_server_init()
     web_server.on(F("/list"), HTTP_GET, handle_file_list);
     // Load editor
     web_server.on(F("/edit"), HTTP_GET, []() {
-        Serial.println("LAMBIN /edit HTTP_GET");
         if (!handle_file_read(F("/edit.htm"))) {
             replyNotFound(F("FileNotFound"));
         }
@@ -243,55 +259,36 @@ web_server_init()
     web_server.begin();
 }
 
-// Здесь функции для работы с файловой системой
-
-String
-getContentType(String const& filename)
-{
-    if (web_server.hasArg(F("download")))
-        return F("application/octet-stream");
-    else if (filename.endsWith(F(".htm")))
-        return F("text/html");
-    else if (filename.endsWith(F(".html")))
-        return F("text/html");
-    else if (filename.endsWith(F(".css")))
-        return F("text/css");
-    else if (filename.endsWith(F(".js")))
-        return F("application/javascript");
-    else if (filename.endsWith(F(".png")))
-        return F("image/png");
-    else if (filename.endsWith(F(".gif")))
-        return F("image/gif");
-    else if (filename.endsWith(F(".jpg")))
-        return F("image/jpeg");
-    else if (filename.endsWith(F(".ico")))
-        return F("image/x-icon");
-    else if (filename.endsWith(F(".xml")))
-        return F("text/xml");
-    else if (filename.endsWith(F(".pdf")))
-        return F("application/x-pdf");
-    else if (filename.endsWith(F(".zip")))
-        return F("application/x-zip");
-    else if (filename.endsWith(F(".gz")))
-        return F("application/x-gzip");
-    return F("text/plain");
-}
-
 bool
 handle_file_read(String path)
 {
-    if (path.endsWith("/"))
-        path += F("index.htm");
-    String contentType = getContentType(path);
-    String pathWithGz  = path + ".gz";
-    if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)) {
-        if (SPIFFS.exists(pathWithGz))
-            path += ".gz";
-        File   file = SPIFFS.open(path, "r");
-        size_t sent = web_server.streamFile(file, contentType);
+    Serial.println("handle_file_read: " + path);
+
+    if (path.endsWith("/")) {
+        path += "index.htm";
+    }
+
+    String contentType;
+    if (web_server.hasArg("download")) {
+        contentType = F("application/octet-stream");
+    }
+    else {
+        contentType = mime::getContentType(path);
+    }
+
+    if (!SPIFFS.exists(path)) {
+        // File not found, try gzip version
+        path = path + ".gz";
+    }
+    if (SPIFFS.exists(path)) {
+        File file = SPIFFS.open(path, "r");
+        if (web_server.streamFile(file, contentType) != file.size()) {
+            Serial.println("Sent less data than expected!");
+        }
         file.close();
         return true;
     }
+
     return false;
 }
 
@@ -386,85 +383,62 @@ handle_file_list()
     if (!web_server.hasArg(F("dir"))) {
         replyBadRequest(F("DIR ARG MISSING"));
     }
-
     String path{web_server.arg("dir")};
     if (path != "/" && !SPIFFS.exists(path)) {
         return replyBadRequest("BAD PATH");
     }
 
-    Serial.println(F("handleFileList: ") + path);
+    Serial.println("handle_file_list: " + path);
     Dir dir = SPIFFS.openDir(path);
-    path.clear();
 
-    // use HTTP/1.1 Chunked response to avoid building a huge temporary string
-  if (!server.chunkedResponseModeStart(200, "text/json")) {
-    server.send(505, F("text/html"), F("HTTP1.1 required"));
-    return;
-  }
+    // Use HTTP/1.1 Chunked response to avoid building a huge temporary string
+    if (!web_server.chunkedResponseModeStart(200, FPSTR(TEXT_JSON))) {
+        web_server.send(505, F("text/html"), F("HTTP1.1 required"));
+        return;
+    }
 
-  // use the same string for every line
-  String output;
-  output.reserve(64);
-  while (dir.next()) {
-#ifdef USE_SPIFFS
-      String error = checkForUnsupportedPath(dir.fileName());
-      if (error.length() > 0) {
-          DBG_OUTPUT_PORT.println(String("Ignoring ") + error + dir.fileName());
-          continue;
-      }
-#endif
-      if (output.length()) {
-          // send string from previous iteration
-          // as an HTTP chunk
-          server.sendContent(output);
-          output = ',';
-      }
-      else {
-          output = '[';
-      }
+    // Use the same string for every line
+    String output;
+    output.reserve(64);
+    while (dir.next()) {
+        String error{check_for_unsupported_path(dir.fileName())};
+        if (error.length() > 0) {
+            Serial.println("Ignoring " + error + dir.fileName());
+            continue;
+        }
 
-      output += "{\"type\":\"";
-      if (dir.isDirectory()) {
-          output += "dir";
-      }
-      else {
-          output += F("file\",\"size\":\"");
-          output += dir.fileSize();
-      }
+        if (output.length()) {
+            // Send string from previous iteration as an HTTP chunk
+            web_server.sendContent(output);
+            output = ',';
+        }
+        else {
+            output = '[';
+        }
 
-      output += F("\",\"name\":\"");
-      // Always return names without leading "/"
-      if (dir.fileName()[0] == '/') {
-          output += &(dir.fileName()[1]);
-      }
-      else {
-          output += dir.fileName();
-      }
+        output += F("{\"type\":\"");
+        if (dir.isDirectory()) {
+            output += "dir";
+        }
+        else {
+            output += F("file\",\"size\":\"");
+            output += dir.fileSize();
+        }
 
-      output += "\"}";
-  }
+        output += F("\",\"name\":\"");
+        // Always return names without leading "/"
+        if (dir.fileName()[0] == '/') {
+            output += &(dir.fileName()[1]);
+        }
+        else {
+            output += dir.fileName();
+        }
 
-  // send last string
-  output += "]";
-  server.sendContent(output);
-  server.chunkedResponseFinalize();
+        output += "\"}";
+    }
 
-
-  String output = "[";
-  while (dir.next()) {
-      File entry = dir.openFile("r");
-      if (output != "[") {
-          output += ',';
-      }
-      bool isDir = false;
-      output += F("{\"type\":\"");
-      output += (isDir) ? F("dir") : F("file");
-      output += F("\",\"name\":\"");
-      output += String(entry.name()).substring(1);
-      output += "\"}";
-      entry.close();
-  }
-  output += "]";
-
-  replyOKJsonWithMsg(output);
+    // Send last string
+    output += "]";
+    web_server.sendContent(output);
+    web_server.chunkedResponseFinalize();
 }
