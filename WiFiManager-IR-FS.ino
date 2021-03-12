@@ -209,13 +209,13 @@ web_server_init()
     // Load editor
     web_server.on(F("/edit"), HTTP_GET, []() {
         if (!handle_file_read(F("/edit.htm"))) {
-            reply_not_found(F("FileNotFound"));
+            reply_not_found(FPSTR(FILE_NOT_FOUND));
         }
     });
     // Create file
     web_server.on(F("/edit"), HTTP_PUT, handle_file_create);
     //Удаление файла
-    web_server.on(F("/edit"), HTTP_DELETE, handleFileDelete);
+    web_server.on(F("/edit"), HTTP_DELETE, handle_file_delete);
     // first callback is called after the request has ended with all parsed arguments
     // second callback handles file uploads at that location
     web_server.on(
@@ -231,7 +231,7 @@ web_server_init()
     // use it to load content from SPIFFS
     web_server.onNotFound([]() {
         if (!handle_file_read(web_server.uri())) {
-            reply_not_found(F("FileNotFound"));
+            reply_not_found(FPSTR(FILE_NOT_FOUND));
         }
     });
 
@@ -344,30 +344,78 @@ handle_file_upload()
     }
 }
 
-void
-handleFileDelete()
-{
-    Serial.println("LAMBIN handleFileDelete()");
+/*
+   Delete the file or folder designed by the given path.
+   If it's a file, delete it.
+   If it's a folder, delete all nested contents first then the folder itself
 
+   IMPORTANT NOTE: using recursion is generally not recommended on embedded devices and can lead to crashes
+   (stack overflow errors). It might crash in case of deeply nested filesystems.
+   Please don't do this on a production system.
+*/
+void
+delete_recursive(String const& path)
+{
+    File file  = SPIFFS.open(path, "r");
+    bool isDir = file.isDirectory();
+    file.close();
+
+    // If it's a plain file, delete it
+    if (!isDir) {
+        SPIFFS.remove(path);
+        return;
+    }
+
+    // Otherwise delete its contents first
+    Dir dir = SPIFFS.openDir(path);
+    while (dir.next()) {
+        delete_recursive(path + '/' + dir.fileName());
+    }
+
+    // Then delete the folder itself
+    SPIFFS.rmdir(path);
+}
+
+/*
+   Handle a file deletion request
+   Operation      | req.responseText
+   ---------------+--------------------------------------------------------------
+   Delete file    | parent of deleted file, or remaining ancestor
+   Delete folder  | parent of deleted folder, or remaining ancestor
+*/
+void
+handle_file_delete()
+{
     if (web_server.args() == 0) {
         reply_server_error(F("BAD ARGS"));
         return;
     }
-    String path = web_server.arg(0);
+    String path{web_server.arg(0)};
+    if (path.isEmpty() || path == "/") {
+        return reply_bad_request("BAD PATH");
+    }
 
-    if (path == "/") {
-        reply_server_error(F("BAD PATH"));
-        return;
-    }
+    Serial.println("handle_file_delete: " + path);
+
     if (!SPIFFS.exists(path)) {
-        reply_not_found(F("FileNotFound"));
-        return;
+        return reply_not_found(FPSTR(FILE_NOT_FOUND));
     }
-    SPIFFS.remove(path);
-    reply_ok();
-    path = String();
+    delete_recursive(path);
+
+    reply_ok_with_msg(last_existing_parent(path));
 }
 
+/*
+   Handle the creation/rename of a new file
+   Operation      | req.responseText
+   ---------------+--------------------------------------------------------------
+   Create file    | parent of created file
+   Create folder  | parent of created folder
+   Rename file    | parent of source file
+   Move file      | parent of source file, or remaining ancestor
+   Rename folder  | parent of source folder
+   Move folder    | parent of source folder, or remaining ancestor
+*/
 void
 handle_file_create()
 {
