@@ -2,7 +2,7 @@
 
 <head>
   <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-  <title>Smart-Room</title>
+  <title>Settings</title>
   <link rel="stylesheet" href="style.css">
   <script>
     var uploaded_file_size = 0;
@@ -54,33 +54,29 @@
   </script>
 </head>
 
-<body">
+<body>
   <h3 class="top">SAD-Lamp - Settings</h3>
   <div class="menu">
-    <a href='index.htm'>Main</a>
+    <a href="index.htm">Main</a>
     <a href="setup.htm">Settings</a>
     <a href="help.htm">Help</a>
     <a href='edit'>File upload</a>
   </div>
 
-  <table class="details"">
+  <table class="details">
     <caption>ESP Module</caption>
     <tr>
-      <!-- <td  style=" border: 0"> -->
-    <td>
-      <p>ESP firmware update</p>
-      <form id="upload_form" enctype="multipart/form-data" method="post">
-        <input type="file" name="uploaded_file_name" id="uploaded_file_name" onchange="upload_file()"><br>
-        <progress id="upload_progress_bar" value="0" max="100" style="width:300px;"></progress>
-        <p id="upload_status" style="font-weight: bold"></p>
-        <p id="uploaded_size"></p>
-      </form>
-      </p>
-
-    </td>
+      <td>
+        <p>ESP firmware update</p>
+        <form id="upload_form" enctype="multipart/form-data" method="post">
+          <input type="file" name="uploaded_file_name" id="uploaded_file_name" onchange="upload_file()"><br>
+          <progress id="upload_progress_bar" value="0" max="100" style="width:300px;"></progress>
+          <p id="upload_status" style="font-weight: bold"></p>
+          <p id="uploaded_size"></p>
+        </form>
+      </td>
     </tr>
   </table>
-
-  </body>
+</body>
 
 </html>

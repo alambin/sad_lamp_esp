@@ -10,10 +10,11 @@ border:0;
 }
 .top{
 color:#888;
-background:url(logo.gif) no-repeat 10px 0;
-padding:3px 0 0 55px;
+background:url(logo.gif) no-repeat 10px 5px;
+padding:12px 0 0 55px;
 font-style:italic;
 margin:0 0 10px 0;
+min-height: 32px
 }
 .top img{
 vertical-align:middle;
@@ -21,9 +22,8 @@ vertical-align:middle;
 .menu{
 border-top:#fab548 5px solid;
 background:#efeff0 url(esp.gif) no-repeat 10px 10px;
-padding:5px 5px 5px 120px;
+padding:0 5px 5px 0px;
 margin:0 0 10px 0;
-min-height:120px;
 border-radius:5px;
 }
 .menu a,
@@ -32,17 +32,17 @@ display:block;
 font-weight:bold;
 text-decoration:none;
 color:#1486ba;
-padding:0 5px 1px 10px;
+padding: 5px;
 font-size:13px;
-border-radius:3px;
-margin:0 0 1px 0;
-border-bottom:#d6d9da 1px solid;
+border-radius:5px;
+margin:0 0 3px 0;
+/* border-bottom:#d6d9da 1px solid; */
 }
 .menu a:visited{
 color:#777;
 }
 .menu a:hover{
-background:#d6d9da;
+background:#b4ced8;
 }
 
 table.details{
@@ -59,6 +59,13 @@ table.details th{
 border:#aaa 1px solid;
 padding:1px 10px;
 background:#fff;
+}
+table.details td.Help,
+table.details th.Help{
+border:#aaa 1px solid;
+padding:1px 10px;
+background:#fff;
+font-size: 13px;
 }
 .content{
 background:#eee;
