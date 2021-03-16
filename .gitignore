@@ -1,3 +1,6 @@
 ### IDEs ####
 /.vs/
 /.vscode/
+
+# Exported biaries
+*.bin

@@ -7,7 +7,7 @@
 namespace
 {
 ESP8266WebServer web_server(80);
-File             fsUploadFile;
+File             g_upload_file;
 
 static const char TEXT_PLAIN[] PROGMEM     = "text/plain";
 static const char TEXT_JSON[] PROGMEM      = "text/json";
@@ -225,56 +225,58 @@ web_server_init()
         F("/edit"), HTTP_POST, []() { reply_ok(); }, handle_file_upload);
 
     // Called when the url is not defined here
-    // use it to load content from SPIFFS
+    // Use it to load content from SPIFFS
     web_server.onNotFound([]() {
         if (!handle_file_read(web_server.uri())) {
             reply_not_found(FPSTR(FILE_NOT_FOUND));
         }
     });
 
-    //Обнавление
+    // Update ESP firmware
     web_server.on(
         F("/update"),
         HTTP_POST,
         []() {
-            Serial.println("LAMBIN /update HTTP_POST 1");
-
             web_server.sendHeader(F("Connection"), F("close"));
             web_server.sendHeader(F("Access-Control-Allow-Origin"), "*");
             reply_ok_with_msg(Update.hasError() ? F("FAIL") : F("OK"));
             ESP.restart();
         },
-        []() {
-            Serial.println("LAMBIN /update HTTP_POST 2");
-
-            HTTPUpload& upload = web_server.upload();
-            if (upload.status == UPLOAD_FILE_START) {
-                Serial.setDebugOutput(true);
-                WiFiUDP::stopAll();
-                Serial.printf_P(PSTR("Update: %s\n"), upload.filename.c_str());
-                uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-                if (!Update.begin(maxSketchSpace)) {  // start with max available size
-                    Update.printError(Serial);
-                }
-            }
-            else if (upload.status == UPLOAD_FILE_WRITE) {
-                if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                    Update.printError(Serial);
-                }
-            }
-            else if (upload.status == UPLOAD_FILE_END) {
-                if (Update.end(true)) {  // true to set the size to the current progress
-                    Serial.printf_P(PSTR("Update Success: %u\nRebooting...\n"), upload.totalSize);
-                }
-                else {
-                    Update.printError(Serial);
-                }
-                Serial.setDebugOutput(false);
-            }
-            yield();
-        });
+        habdle_esp_sw_upload);
+    // web_server.on("/get_esp_sw_upload_progress", handle_get_esp_sw_upload_progress);
 
     web_server.begin();
+}
+
+void
+habdle_esp_sw_upload()
+{
+    HTTPUpload& upload = web_server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+        Serial.setDebugOutput(true);
+        WiFiUDP::stopAll();
+        Serial.printf_P(PSTR("Update: %s\n"), upload.filename.c_str());
+        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        if (!Update.begin(maxSketchSpace)) {  // start with max available size
+            Update.printError(Serial);
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+            Update.printError(Serial);
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_END) {
+        reply_ok_with_msg("ESP firmware update completed!");
+        if (Update.end(true)) {  // true to set the size to the current progress
+            Serial.printf_P(PSTR("Update Success: %u\nRebooting...\n"), upload.totalSize);
+        }
+        else {
+            Update.printError(Serial);
+        }
+        Serial.setDebugOutput(false);
+    }
+    yield();
 }
 
 bool
@@ -325,15 +327,15 @@ handle_file_upload()
             filename = "/" + filename;
         }
         Serial.println("handle_file_upload Name: " + filename);
-        fsUploadFile = SPIFFS.open(filename, "w");
-        if (!fsUploadFile) {
+        g_upload_file = SPIFFS.open(filename, "w");
+        if (!g_upload_file) {
             return reply_server_error(F("CREATE FAILED"));
         }
         Serial.println("Upload: START, filename: " + filename);
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
-        if (fsUploadFile) {
-            size_t bytesWritten = fsUploadFile.write(upload.buf, upload.currentSize);
+        if (g_upload_file) {
+            size_t bytesWritten = g_upload_file.write(upload.buf, upload.currentSize);
             if (bytesWritten != upload.currentSize) {
                 return reply_server_error(F("WRITE FAILED"));
             }
@@ -341,8 +343,8 @@ handle_file_upload()
         Serial.println("Upload: WRITE, Bytes: " + upload.currentSize);
     }
     else if (upload.status == UPLOAD_FILE_END) {
-        if (fsUploadFile) {
-            fsUploadFile.close();
+        if (g_upload_file) {
+            g_upload_file.close();
         }
         Serial.println("Upload: END, Size: " + upload.totalSize);
     }
@@ -495,6 +497,7 @@ handle_file_create()
 void
 handle_file_list()
 {
+    // TODO: sort list in alphabet order
     if (!web_server.hasArg(F("dir"))) {
         reply_bad_request(F("DIR ARG MISSING"));
     }
