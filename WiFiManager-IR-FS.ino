@@ -1,3 +1,5 @@
+#include <map>
+
 #include <ESP8266SSDP.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
@@ -88,6 +90,42 @@ last_existing_parent(String path)
     Serial.println(String("Last existing parent: ") + path);
     return path;
 }
+
+bool
+case_insensitive_string_less(String const& str1, String const& str2)
+{
+    // if (str1.length() < str2.length()) {
+    //     return true;
+    // }
+    // if (str2.length() < str1.length()) {
+    //     return false;
+    // }
+    auto min_size = (str1.length() < str2.length()) ? str1.length() : str2.length();
+    for (size_t i = 0; i < min_size; ++i) {
+        if (std::toupper(str1[i]) != std::toupper(str2[i])) {
+            return std::toupper(str1[i]) < std::toupper(str2[i]);
+        }
+    }
+    return str1.length() < str2.length();
+}
+
+auto filename_less = [](String const& l, String const& r) {
+    // return std::lexicographical_compare(l.begin(), l.end(), r.begin(), r.end());
+    if ((l[0] == '/') && (r[0] != '/')) {
+        // "l" is directory
+        return true;
+    }
+    else if ((r[0] == '/') && (l[0] != '/')) {
+        // "r" is directory
+        return false;
+    }
+    else if ((l[0] == '/') && (r[0] == '/')) {
+        // Both strings are directory names
+        return case_insensitive_string_less(l.substring(1), r.substring(1));
+    }
+    // Regular file names
+    return case_insensitive_string_less(l, r);
+};
 
 }  // namespace
 
@@ -497,7 +535,6 @@ handle_file_create()
 void
 handle_file_list()
 {
-    // TODO: sort list in alphabet order
     if (!web_server.hasArg(F("dir"))) {
         reply_bad_request(F("DIR ARG MISSING"));
     }
@@ -516,7 +553,9 @@ handle_file_list()
     }
 
     // Use the same string for every line
-    String output;
+    String                                            output;
+    String                                            name;
+    std::map<String, String, decltype(filename_less)> files_data(filename_less);
     output.reserve(64);
     while (dir.next()) {
         String error{check_for_unsupported_path(dir.fileName())};
@@ -525,17 +564,10 @@ handle_file_list()
             continue;
         }
 
-        if (output.length()) {
-            // Send string from previous iteration as an HTTP chunk
-            web_server.sendContent(output);
-            output = ',';
-        }
-        else {
-            output = '[';
-        }
-
         output += F("{\"type\":\"");
         if (dir.isDirectory()) {
+            // There is no directories on SPIFFS. This code is here for compatibility with another (possible)
+            // filesystems
             output += "dir";
         }
         else {
@@ -547,16 +579,29 @@ handle_file_list()
         // Always return names without leading "/"
         if (dir.fileName()[0] == '/') {
             output += &(dir.fileName()[1]);
+            name = dir.fileName();  // name in map should contain leading "/"
         }
         else {
             output += dir.fileName();
+            name = '/' + dir.fileName();  // name in map should contain leading "/"
         }
 
         output += "\"}";
+
+        files_data.insert(std::make_pair(name, output));
+        output.clear();
     }
 
-    // Send last string
-    output += "]";
+    // Sort file list before building output.
+    // NOTE: SPIFFS doesn't support directories! Path <directory_name/filename> can exist, but directory, as entoty,
+    // not. Directories are used just as part of path.
+    output = '[';
+    for (auto const& data_pair : files_data) {
+        output += data_pair.second + ',';
+    }
+    output.remove(output.length() - 1);
+    output += ']';
+
     web_server.sendContent(output);
     web_server.chunkedResponseFinalize();
 }
