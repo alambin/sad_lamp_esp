@@ -4,12 +4,23 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <FS.h>
+#include <WebSocketsServer.h>
 #include <WiFiManager.h>
+
+#include "BufferedLogger.h"
+
+//#define DBG_OUTPUT_PORT Serial
+#define DBG_OUTPUT_PORT buffered_logger
+#define DEBUG_LOG(msg)  DBG_OUTPUT_PORT.pringln(msg)
 
 namespace
 {
 ESP8266WebServer web_server(80);
+WebSocketsServer web_socket(81);
 File             g_upload_file;
+bool             debugger_client_connected{false};
+uint8_t          debugger_client_number{0};
+BufferedLogger   buffered_logger(2 * 1024, true);
 
 static const char TEXT_PLAIN[] PROGMEM     = "text/plain";
 static const char TEXT_JSON[] PROGMEM      = "text/json";
@@ -45,14 +56,14 @@ reply_not_found(String const& msg)
 void
 reply_bad_request(String const& msg)
 {
-    Serial.println(msg);
+    DBG_OUTPUT_PORT.println(msg);
     web_server.send(400, FPSTR(TEXT_PLAIN), msg + "\r\n");
 }
 
 void
 reply_server_error(String const& msg)
 {
-    Serial.println(msg);
+    DBG_OUTPUT_PORT.println(msg);
     web_server.send(500, FPSTR(TEXT_PLAIN), msg + "\r\n");
 }
 
@@ -87,7 +98,7 @@ last_existing_parent(String path)
             path.clear();  // No slash => the top folder does not exist
         }
     }
-    Serial.println(String("Last existing parent: ") + path);
+    DBG_OUTPUT_PORT.println(String("Last existing parent: ") + path);
     return path;
 }
 
@@ -146,30 +157,37 @@ setup()
     init_wifi();
 
     SPIFFS.begin();
+    web_socket_server_init();
     web_server_init();
     SSDP_init();
 
     // TODO: think about replacing all Web file operations with FTP server
+    // TODO: use 20x20 favicon. Regular lamp. With transparent background!
+    // TODO: rework logging by using in most of cases of functions/macros, instead of "Stream.function()"
 }
 
 void
 loop()
 {
-    // Just debug. Remove it in final version
-    Serial.print("+");
-    delay(1000);
+    static unsigned long last_print{0};
+    if (millis() - last_print > 1000) {
+        DBG_OUTPUT_PORT.print("+");  // TODO: just debug. Remove it in final version
+        send_debug_logs();
+        last_print = millis();
+    }
 
+    web_socket.loop();
     web_server.handleClient();
 }
 
 void
 configModeCallback(WiFiManager* wifiManager)
 {
-    Serial.print(F("Could not connect to Access Point. Entering config mode. Connect to \""));
-    Serial.print(wifiManager->getConfigPortalSSID());
-    Serial.print(F("\" WiFi network and open http://"));
-    Serial.print(WiFi.softAPIP());
-    Serial.println(F(" (if it didn't happen automatically) to configure WiFi settings of SAD-lamp"));
+    DBG_OUTPUT_PORT.print(F("Could not connect to Access Point. Entering config mode. Connect to \""));
+    DBG_OUTPUT_PORT.print(wifiManager->getConfigPortalSSID());
+    DBG_OUTPUT_PORT.print(F("\" WiFi network and open http://"));
+    DBG_OUTPUT_PORT.print(WiFi.softAPIP());
+    DBG_OUTPUT_PORT.println(F(" (if it didn't happen automatically) to configure WiFi settings of SAD-lamp"));
 }
 
 void
@@ -179,7 +197,7 @@ init_wifi()
     WiFiManager wifiManager;
 
     // For debug info
-    // Serial.setDebugOutput(true);
+    // DBG_OUTPUT_PORT.setDebugOutput(true);
     // wifiManager.setDebugOutput(true);
 
     // set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
@@ -194,22 +212,22 @@ init_wifi()
     // And goes into a blocking loop awaiting configuration
     // If access point "SAD-Lamp_AP" is established, it's configuration is available by address http://192.168.4.1
     if (!wifiManager.autoConnect(PSTR("SAD-Lamp_AP") /*, "password"*/)) {
-        Serial.println(F("failed to connect and hit timeout"));
+        DBG_OUTPUT_PORT.println(F("failed to connect and hit timeout"));
         delay(3000);
         // if we still have not connected restart and try all over again
         ESP.restart();
         delay(5000);
     }
 
-    Serial.print(F("Connected to Access Point \""));
-    Serial.print(WiFi.SSID());
-    Serial.print(F("\". IP: "));
-    Serial.print(WiFi.localIP().toString());
-    Serial.print(F("; mask: "));
-    Serial.print(WiFi.subnetMask().toString());
-    Serial.print(F("; gateway: "));
-    Serial.print(WiFi.gatewayIP().toString());
-    Serial.println();
+    DBG_OUTPUT_PORT.print(F("Connected to Access Point \""));
+    DBG_OUTPUT_PORT.print(WiFi.SSID());
+    DBG_OUTPUT_PORT.print(F("\". IP: "));
+    DBG_OUTPUT_PORT.print(WiFi.localIP().toString());
+    DBG_OUTPUT_PORT.print(F("; mask: "));
+    DBG_OUTPUT_PORT.print(WiFi.subnetMask().toString());
+    DBG_OUTPUT_PORT.print(F("; gateway: "));
+    DBG_OUTPUT_PORT.print(WiFi.gatewayIP().toString());
+    DBG_OUTPUT_PORT.println();
 }
 
 void
@@ -233,7 +251,40 @@ SSDP_init()
     // SSDP.setManufacturerURL("http://www.address.ru");
     SSDP.begin();
 
-    Serial.println("SSDP initialized");
+    DBG_OUTPUT_PORT.println("SSDP initialized");
+}
+
+void
+web_socket_server_init()
+{
+    web_socket.begin();
+    web_socket.onEvent(web_socket_event_handler);
+    DBG_OUTPUT_PORT.println("WebSocket server started.");
+}
+
+void
+web_socket_event_handler(uint8_t client_num, WStype_t event_type, uint8_t* payload, size_t lenght)
+{
+    switch (event_type) {
+    case WStype_DISCONNECTED:
+        // Websocket is disconnected
+        DBG_OUTPUT_PORT.printf_P(PSTR("[%u] Disconnected!\n"), client_num);
+        debugger_client_connected = false;
+        break;
+    case WStype_CONNECTED: {
+        // New websocket connection is established
+        IPAddress ip = web_socket.remoteIP(client_num);
+        DBG_OUTPUT_PORT.printf_P(
+            PSTR("[%u] Connected from %d.%d.%d.%d url: %s\n"), client_num, ip[0], ip[1], ip[2], ip[3], payload);
+        break;
+    }
+    case WStype_TEXT:
+        // New text data is received
+        DBG_OUTPUT_PORT.printf_P(PSTR("[%u] Received text: %s\n"), client_num, payload);
+        String command((char const*)payload);
+        process_websocket_command(command, client_num);
+        break;
+    }
 }
 
 void
@@ -291,28 +342,28 @@ habdle_esp_sw_upload()
 {
     HTTPUpload& upload = web_server.upload();
     if (upload.status == UPLOAD_FILE_START) {
-        Serial.setDebugOutput(true);
+        DBG_OUTPUT_PORT.setDebugOutput(true);
         WiFiUDP::stopAll();
-        Serial.printf_P(PSTR("Update: %s\n"), upload.filename.c_str());
+        DBG_OUTPUT_PORT.printf_P(PSTR("Update: %s\n"), upload.filename.c_str());
         uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
         if (!Update.begin(maxSketchSpace)) {  // start with max available size
-            Update.printError(Serial);
+            Update.printError(DBG_OUTPUT_PORT);
         }
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-            Update.printError(Serial);
+            Update.printError(DBG_OUTPUT_PORT);
         }
     }
     else if (upload.status == UPLOAD_FILE_END) {
         reply_ok_with_msg("ESP firmware update completed!");
         if (Update.end(true)) {  // true to set the size to the current progress
-            Serial.printf_P(PSTR("Update Success: %u\nRebooting...\n"), upload.totalSize);
+            DBG_OUTPUT_PORT.printf_P(PSTR("Update Success: %u\nRebooting...\n"), upload.totalSize);
         }
         else {
-            Update.printError(Serial);
+            Update.printError(DBG_OUTPUT_PORT);
         }
-        Serial.setDebugOutput(false);
+        DBG_OUTPUT_PORT.setDebugOutput(false);
     }
     yield();
 }
@@ -320,7 +371,7 @@ habdle_esp_sw_upload()
 bool
 handle_file_read(String path)
 {
-    Serial.println("handle_file_read: " + path);
+    DBG_OUTPUT_PORT.println("handle_file_read: " + path);
 
     if (path.endsWith("/")) {
         path += "index.htm";
@@ -341,7 +392,7 @@ handle_file_read(String path)
     if (SPIFFS.exists(path)) {
         File file = SPIFFS.open(path, "r");
         if (web_server.streamFile(file, contentType) != file.size()) {
-            Serial.println("Sent less data than expected!");
+            DBG_OUTPUT_PORT.println("Sent less data than expected!");
         }
         file.close();
         return true;
@@ -364,12 +415,12 @@ handle_file_upload()
         if (!filename.startsWith("/")) {
             filename = "/" + filename;
         }
-        Serial.println("handle_file_upload Name: " + filename);
+        DBG_OUTPUT_PORT.println("handle_file_upload Name: " + filename);
         g_upload_file = SPIFFS.open(filename, "w");
         if (!g_upload_file) {
             return reply_server_error(F("CREATE FAILED"));
         }
-        Serial.println("Upload: START, filename: " + filename);
+        DBG_OUTPUT_PORT.println("Upload: START, filename: " + filename);
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
         if (g_upload_file) {
@@ -378,13 +429,13 @@ handle_file_upload()
                 return reply_server_error(F("WRITE FAILED"));
             }
         }
-        Serial.println("Upload: WRITE, Bytes: " + upload.currentSize);
+        DBG_OUTPUT_PORT.println("Upload: WRITE, Bytes: " + upload.currentSize);
     }
     else if (upload.status == UPLOAD_FILE_END) {
         if (g_upload_file) {
             g_upload_file.close();
         }
-        Serial.println("Upload: END, Size: " + upload.totalSize);
+        DBG_OUTPUT_PORT.println("Upload: END, Size: " + upload.totalSize);
     }
 }
 
@@ -439,7 +490,7 @@ handle_file_delete()
         return reply_bad_request("BAD PATH");
     }
 
-    Serial.println("handle_file_delete: " + path);
+    DBG_OUTPUT_PORT.println("handle_file_delete: " + path);
 
     if (!SPIFFS.exists(path)) {
         return reply_not_found(FPSTR(FILE_NOT_FOUND));
@@ -484,7 +535,7 @@ handle_file_create()
     String src = web_server.arg("src");
     if (src.isEmpty()) {
         // No source specified: creation
-        Serial.println("handle_file_create: " + path);
+        DBG_OUTPUT_PORT.println("handle_file_create: " + path);
         if (path.endsWith("/")) {
             // Create a folder
             path.remove(path.length() - 1);
@@ -517,7 +568,7 @@ handle_file_create()
             return reply_bad_request(F("SRC FILE NOT FOUND"));
         }
 
-        Serial.println("handle_file_create: " + path + " from " + src);
+        DBG_OUTPUT_PORT.println("handle_file_create: " + path + " from " + src);
 
         if (path.endsWith("/")) {
             path.remove(path.length() - 1);
@@ -543,7 +594,7 @@ handle_file_list()
         return reply_bad_request("BAD PATH");
     }
 
-    Serial.println("handle_file_list: " + path);
+    DBG_OUTPUT_PORT.println("handle_file_list: " + path);
     Dir dir = SPIFFS.openDir(path);
 
     // Use HTTP/1.1 Chunked response to avoid building a huge temporary string
@@ -560,7 +611,7 @@ handle_file_list()
     while (dir.next()) {
         String error{check_for_unsupported_path(dir.fileName())};
         if (error.length() > 0) {
-            Serial.println("Ignoring " + error + dir.fileName());
+            DBG_OUTPUT_PORT.println("Ignoring " + error + dir.fileName());
             continue;
         }
 
@@ -604,4 +655,27 @@ handle_file_list()
 
     web_server.sendContent(output);
     web_server.chunkedResponseFinalize();
+}
+
+void
+process_websocket_command(String const& command, uint8_t client_num)
+{
+    if (command == "start_reading_logs") {
+        debugger_client_number    = client_num;
+        debugger_client_connected = true;
+        send_debug_logs();
+    }
+    else if (command == "stop_reading_logs") {
+        send_debug_logs();
+        debugger_client_connected = false;
+    }
+}
+
+void
+send_debug_logs()
+{
+    if (debugger_client_connected && (buffered_logger.get_log().length() > 0)) {
+        web_socket.sendTXT(debugger_client_number, buffered_logger.get_log());
+        buffered_logger.clear();
+    }
 }

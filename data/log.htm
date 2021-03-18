@@ -2,19 +2,27 @@
 
 <head>
   <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-  <title>SAD-Lamp</title>
+  <title>Debug log</title>
   <link rel="stylesheet" href="style.css">
+  <script src="debug_log.js"></script>
 </head>
 
 <body>
-  <h3 class="top">SAD-Lamp - Main</h3>
+  <h3 class="top">SAD-Lamp - Help</h3>
   <div class="menu">
     <a href="index.htm">Main</a>
-    <a href="setup.htm">Settings</a>
+    <a href="setup.htm">Setting</a>
     <a href="help.htm">Help</a>
     <a href="log.htm">Debug log</a>
     <a href='edit'>File upload</a>
   </div>
+
+  <div class="debug_log" id="debug_log"></div>
+
+  <p style="margin:8px 0px">
+    <button id="reading_logs_button" onclick="toggle_reading_logs();">Start reading logs</button>
+  </p>
+
 </body>
 
 </html>

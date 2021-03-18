@@ -20,18 +20,33 @@ min-height: 32px
 vertical-align:middle;
 }
 .menu{
-border-top:#fab548 5px solid;
-background:#efeff0 url(esp.gif) no-repeat 10px 10px;
-padding:0 5px 5px 0px;
-margin:0 0 10px 0;
-border-radius:5px;
+  background-size: cover;
+  padding:0 5px 5px 0px;
+  margin:0 0 10px 0;
+  display: block;
+  position: relative;
+}
+/* This block is added for transparency of menu.If you don't need it, move "background" and "background-size"
+to ".menu" */
+.menu::after {
+  content: "";
+  background: url(sky.jpg) no-repeat;
+  background-size: 100% 100%;
+  opacity: 0.5;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  position: absolute;
+  z-index: -1;
+  border-radius:5px;
 }
 .menu a,
 .menu a:link{
 display:block;
 font-weight:bold;
 text-decoration:none;
-color:#1486ba;
+color:#147dba;
 padding: 5px;
 font-size:13px;
 border-radius:5px;
@@ -42,7 +57,7 @@ margin:0 0 3px 0;
 color:#777;
 }
 .menu a:hover{
-background:#b4ced8;
+background:#4a4a5f31;
 }
 
 table.details{
@@ -85,4 +100,13 @@ margin:0 0 5px 0;
 .copyright{
 font-size:11px;
 padding:0 0 0 10px;
+}
+.debug_log{
+  height:300px;
+  width:450px;
+  border:1px solid #ccc;
+  font:12px Courier;
+  overflow:auto;
+  white-space: pre;
+  /* white-space: nowrap; */
 }
