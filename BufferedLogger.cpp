@@ -1,10 +1,7 @@
 #include "BufferedLogger.h"
 
-#include <HardwareSerial.h>
-
-BufferedLogger::BufferedLogger(uint16_t buf_size, bool log_to_serial)
+BufferedLogger::BufferedLogger(uint16_t buf_size)
   : buf_size_{buf_size}
-  , should_log_to_serial_{log_to_serial}
 {
     log_.reserve(buf_size);
 }
@@ -12,10 +9,6 @@ BufferedLogger::BufferedLogger(uint16_t buf_size, bool log_to_serial)
 size_t
 BufferedLogger::write(uint8_t c)
 {
-    if (should_log_to_serial_) {
-        Serial.write(c);
-    }
-
     log_ += c;
     return (shrink() ? 0 : 1);
 }
@@ -23,10 +16,6 @@ BufferedLogger::write(uint8_t c)
 size_t
 BufferedLogger::write(uint8_t const* buffer, size_t size)
 {
-    if (should_log_to_serial_) {
-        Serial.write(buffer, size);
-    }
-
     auto shrinked = log_.concat((char const*)buffer, size);
     return size - shrinked;
 }

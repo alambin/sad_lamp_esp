@@ -7,7 +7,7 @@
 class BufferedLogger : public Print
 {
 public:
-    BufferedLogger(uint16_t buf_size = 2 * 1024, bool log_to_serial = false);
+    BufferedLogger(uint16_t buf_size = 2 * 1024);
 
     size_t write(uint8_t c) override;
     size_t write(uint8_t const* buffer, size_t size) override;
@@ -28,7 +28,6 @@ private:
 
     String   log_;
     uint16_t buf_size_;
-    bool     should_log_to_serial_;
 };
 
 #endif  // BUFFEREDLOGGER_H_
