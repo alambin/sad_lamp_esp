@@ -4,10 +4,26 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <FS.h>
+#include <FTPServer.h>
 #include <WebSocketsServer.h>
 #include <WiFiManager.h>
 
 #include "logger.h"
+
+
+// TODO: refactor it in C++ way. TAKE INTO ACCOUNT classes in esp_avr_programmer.
+// So, after refactoring this project will be easily merged with esp_avr_programmer
+
+
+// FTP server consumes 1% of flash and 2% of RAM
+// This is IMPORTANT: for details how to configure FTP-client visit https://github.com/nailbuster/esp8266FTPServer
+// In particular:
+// 0. Take more stable fork: https://github.com/charno/FTPClientServer
+// 1. You need to setup Filezilla(or other client) to only allow 1 connection
+// 2. It does NOT support any encryption, so you'll have to disable any form of encryption
+// 3. It only supports Passive ftp mode
+// 4, Look at "Issues" folder - looks likr this library is quite unstable
+#define FTP_SERVER
 
 namespace
 {
@@ -16,6 +32,10 @@ WebSocketsServer web_socket(81);
 File             upload_file;
 bool             debugger_client_connected{false};
 uint8_t          debugger_client_number{0};
+
+#ifdef FTP_SERVER
+FTPServer ftp_server(SPIFFS);
+#endif
 
 static const char TEXT_PLAIN[] PROGMEM     = "text/plain";
 static const char TEXT_JSON[] PROGMEM      = "text/json";
@@ -93,7 +113,7 @@ last_existing_parent(String path)
             path.clear();  // No slash => the top folder does not exist
         }
     }
-    DEBUG_PRINTLN(String("Last existing parent: ") + path);
+    DEBUG_PRINTLN(PSTR("Last existing parent: ") + path);
     return path;
 }
 
@@ -156,8 +176,14 @@ setup()
     web_server_init();
     SSDP_init();
 
-    // TODO: think about replacing all Web file operations with FTP server
-    // TODO: rework logging by using in most of cases of functions/macros, instead of "Stream.function()"
+#ifdef FTP_SERVER
+    // Setup the ftp server with username and password
+    // ports are defined in FTPCommon.h, default is
+    //   21 for the control connection
+    //   50009 for the data connection (passive mode by default)
+    ftp_server.begin(F("esp8266"), F("esp8266"));
+    DEBUG_PRINTLN(F("FTP server initialized"));
+#endif
 }
 
 void
@@ -172,6 +198,10 @@ loop()
 
     web_socket.loop();
     web_server.handleClient();
+
+#ifdef FTP_SERVER
+    ftp_server.handleFTP();
+#endif
 }
 
 void
@@ -232,20 +262,20 @@ SPIFFS_init()
 void
 SSDP_init()
 {
-    SSDP.setDeviceType("upnp:rootdevice");
-    SSDP.setSchemaURL("description.xml");
+    SSDP.setDeviceType(F("upnp:rootdevice"));
+    SSDP.setSchemaURL(F("description.xml"));
     SSDP.setHTTPPort(80);
-    SSDP.setName("SAD-Lamp");
+    SSDP.setName(F("SAD-Lamp"));
     SSDP.setSerialNumber("1");
     SSDP.setURL("/");
-    SSDP.setModelName("SAD-Lamp");
+    SSDP.setModelName(F("SAD-Lamp"));
     SSDP.setModelNumber("1");
     // SSDP.setModelURL("http://adress.ru/page/");
-    SSDP.setManufacturer("Lambin Alexey");
+    SSDP.setManufacturer(F("Lambin Alexey"));
     // SSDP.setManufacturerURL("http://www.address.ru");
     SSDP.begin();
 
-    DEBUG_PRINTLN("SSDP initialized");
+    DEBUG_PRINTLN(F("SSDP initialized"));
 }
 
 void
@@ -253,7 +283,7 @@ web_socket_server_init()
 {
     web_socket.begin();
     web_socket.onEvent(web_socket_event_handler);
-    DEBUG_PRINTLN("WebSocket server started.");
+    DEBUG_PRINTLN(F("WebSocket server started."));
 }
 
 void
@@ -329,6 +359,7 @@ web_server_init()
     // web_server.on("/get_esp_sw_upload_progress", handle_get_esp_sw_upload_progress);
 
     web_server.begin();
+    DEBUG_PRINTLN(F("Web server initialized"));
 }
 
 void
@@ -350,7 +381,7 @@ habdle_esp_sw_upload()
         }
     }
     else if (upload.status == UPLOAD_FILE_END) {
-        reply_ok_with_msg("ESP firmware update completed!");
+        reply_ok_with_msg(F("ESP firmware update completed!"));
         if (Update.end(true)) {  // true to set the size to the current progress
             DEBUG_PRINTF(PSTR("Update Success: %u\nRebooting...\n"), upload.totalSize);
         }
@@ -365,14 +396,14 @@ habdle_esp_sw_upload()
 bool
 handle_file_read(String path)
 {
-    DEBUG_PRINTLN("handle_file_read: " + path);
+    DEBUG_PRINTLN(PSTR("handle_file_read: ") + path);
 
     if (path.endsWith("/")) {
-        path += "index.htm";
+        path += F("index.htm");
     }
 
     String contentType;
-    if (web_server.hasArg("download")) {
+    if (web_server.hasArg(F("download"))) {
         contentType = F("application/octet-stream");
     }
     else {
@@ -381,12 +412,12 @@ handle_file_read(String path)
 
     if (!SPIFFS.exists(path)) {
         // File not found, try gzip version
-        path = path + ".gz";
+        path = path + F(".gz");
     }
     if (SPIFFS.exists(path)) {
         File file = SPIFFS.open(path, "r");
         if (web_server.streamFile(file, contentType) != file.size()) {
-            DEBUG_PRINTLN("Sent less data than expected!");
+            DEBUG_PRINTLN(F("Sent less data than expected!"));
         }
         file.close();
         return true;
@@ -398,7 +429,7 @@ handle_file_read(String path)
 void
 handle_file_upload()
 {
-    if (web_server.uri() != "/edit") {
+    if (web_server.uri() != F("/edit")) {
         return;
     }
 
@@ -409,12 +440,12 @@ handle_file_upload()
         if (!filename.startsWith("/")) {
             filename = "/" + filename;
         }
-        DEBUG_PRINTLN("handle_file_upload Name: " + filename);
+        DEBUG_PRINTLN(PSTR("handle_file_upload Name: ") + filename);
         upload_file = SPIFFS.open(filename, "w");
         if (!upload_file) {
             return reply_server_error(F("CREATE FAILED"));
         }
-        DEBUG_PRINTLN("Upload: START, filename: " + filename);
+        DEBUG_PRINTLN(PSTR("Upload: START, filename: ") + filename);
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
         if (upload_file) {
@@ -423,13 +454,13 @@ handle_file_upload()
                 return reply_server_error(F("WRITE FAILED"));
             }
         }
-        DEBUG_PRINTLN("Upload: WRITE, Bytes: " + upload.currentSize);
+        DEBUG_PRINTLN(PSTR("Upload: WRITE, Bytes: ") + upload.currentSize);
     }
     else if (upload.status == UPLOAD_FILE_END) {
         if (upload_file) {
             upload_file.close();
         }
-        DEBUG_PRINTLN("Upload: END, Size: " + upload.totalSize);
+        DEBUG_PRINTLN(PSTR("Upload: END, Size: ") + upload.totalSize);
     }
 }
 
@@ -481,10 +512,10 @@ handle_file_delete()
     }
     String path{web_server.arg(0)};
     if (path.isEmpty() || path == "/") {
-        return reply_bad_request("BAD PATH");
+        return reply_bad_request(F("BAD PATH"));
     }
 
-    DEBUG_PRINTLN("handle_file_delete: " + path);
+    DEBUG_PRINTLN(PSTR("handle_file_delete: ") + path);
 
     if (!SPIFFS.exists(path)) {
         return reply_not_found(FPSTR(FILE_NOT_FOUND));
@@ -512,7 +543,7 @@ handle_file_create()
         reply_bad_request(F("PATH ARG MISSING"));
     }
 
-    String path{web_server.arg("path")};
+    String path{web_server.arg(F("path"))};
     if (path.isEmpty()) {
         return reply_bad_request(F("PATH ARG MISSING"));
     }
@@ -520,16 +551,16 @@ handle_file_create()
         return reply_server_error(F("INVALID FILENAME"));
     }
     if (path == "/") {
-        return reply_bad_request("BAD PATH");
+        return reply_bad_request(F("BAD PATH"));
     }
     if (SPIFFS.exists(path)) {
         return reply_bad_request(F("FILE EXISTS"));
     }
 
-    String src = web_server.arg("src");
+    String src = web_server.arg(F("src"));
     if (src.isEmpty()) {
         // No source specified: creation
-        DEBUG_PRINTLN("handle_file_create: " + path);
+        DEBUG_PRINTLN(PSTR("handle_file_create: ") + path);
         if (path.endsWith("/")) {
             // Create a folder
             path.remove(path.length() - 1);
@@ -556,13 +587,13 @@ handle_file_create()
     else {
         // Source specified: rename
         if (src == "/") {
-            return reply_bad_request("BAD SRC");
+            return reply_bad_request(F("BAD SRC"));
         }
         if (!SPIFFS.exists(src)) {
             return reply_bad_request(F("SRC FILE NOT FOUND"));
         }
 
-        DEBUG_PRINTLN("handle_file_create: " + path + " from " + src);
+        DEBUG_PRINTLN(PSTR("handle_file_create: ") + path + PSTR(" from ") + src);
 
         if (path.endsWith("/")) {
             path.remove(path.length() - 1);
@@ -583,12 +614,12 @@ handle_file_list()
     if (!web_server.hasArg(F("dir"))) {
         reply_bad_request(F("DIR ARG MISSING"));
     }
-    String path{web_server.arg("dir")};
+    String path{web_server.arg(F("dir"))};
     if (path != "/" && !SPIFFS.exists(path)) {
-        return reply_bad_request("BAD PATH");
+        return reply_bad_request(F("BAD PATH"));
     }
 
-    DEBUG_PRINTLN("handle_file_list: " + path);
+    DEBUG_PRINTLN(PSTR("handle_file_list: ") + path);
     Dir dir = SPIFFS.openDir(path);
 
     // Use HTTP/1.1 Chunked response to avoid building a huge temporary string
@@ -605,7 +636,7 @@ handle_file_list()
     while (dir.next()) {
         String error{check_for_unsupported_path(dir.fileName())};
         if (error.length() > 0) {
-            DEBUG_PRINTLN("Ignoring " + error + dir.fileName());
+            DEBUG_PRINTLN(PSTR("Ignoring ") + error + dir.fileName());
             continue;
         }
 
@@ -613,7 +644,7 @@ handle_file_list()
         if (dir.isDirectory()) {
             // There is no directories on SPIFFS. This code is here for compatibility with another (possible)
             // filesystems
-            output += "dir";
+            output += PSTR("dir");
         }
         else {
             output += F("file\",\"size\":\"");
@@ -654,12 +685,12 @@ handle_file_list()
 void
 process_websocket_command(String const& command, uint8_t client_num)
 {
-    if (command == "start_reading_logs") {
+    if (command == F("start_reading_logs")) {
         debugger_client_number    = client_num;
         debugger_client_connected = true;
         send_debug_logs();
     }
-    else if (command == "stop_reading_logs") {
+    else if (command == F("stop_reading_logs")) {
         send_debug_logs();
         debugger_client_connected = false;
     }
