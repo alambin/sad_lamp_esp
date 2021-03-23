@@ -25,7 +25,7 @@ constexpr bool should_log_to_serial = true;  // Set it if you want to log to bot
 
 #if DBG_OUTPUT_PORT == buffered_logger
 #include "BufferedLogger.h"
-BufferedLogger buffered_logger(2 * 1024);
+extern BufferedLogger buffered_logger;
 #endif
 
 #endif  // LOGGER_H_

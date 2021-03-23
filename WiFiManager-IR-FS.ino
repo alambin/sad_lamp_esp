@@ -5,9 +5,9 @@
 #include <ESP8266WiFi.h>
 #include <FS.h>
 #include <FTPServer.h>
-#include <WebSocketsServer.h>
 #include <WiFiManager.h>
 
+#include "WebSocketServer.h"
 #include "logger.h"
 
 
@@ -27,11 +27,10 @@
 
 namespace
 {
-ESP8266WebServer web_server(80);
-WebSocketsServer web_socket(81);
-File             upload_file;
-bool             debugger_client_connected{false};
-uint8_t          debugger_client_number{0};
+ESP8266WebServer     web_server(80);
+WebSocketServer      web_socket_server;
+File                 upload_file;
+std::vector<uint8_t> debugger_clients_ids;
 
 #ifdef FTP_SERVER
 FTPServer ftp_server(SPIFFS);
@@ -196,7 +195,7 @@ loop()
         last_print = millis();
     }
 
-    web_socket.loop();
+    web_socket_server.loop();
     web_server.handleClient();
 
 #ifdef FTP_SERVER
@@ -281,34 +280,20 @@ SSDP_init()
 void
 web_socket_server_init()
 {
-    web_socket.begin();
-    web_socket.onEvent(web_socket_event_handler);
-    DEBUG_PRINTLN(F("WebSocket server started."));
-}
-
-void
-web_socket_event_handler(uint8_t client_num, WStype_t event_type, uint8_t* payload, size_t lenght)
-{
-    switch (event_type) {
-    case WStype_DISCONNECTED:
-        // Websocket is disconnected
-        DEBUG_PRINTF(PSTR("[%u] Disconnected!\n"), client_num);
-        debugger_client_connected = false;
-        break;
-    case WStype_CONNECTED: {
-        // New websocket connection is established
-        IPAddress ip = web_socket.remoteIP(client_num);
-        DEBUG_PRINTF(
-            PSTR("[%u] Connected from %d.%d.%d.%d url: %s\n"), client_num, ip[0], ip[1], ip[2], ip[3], payload);
-        break;
-    }
-    case WStype_TEXT:
-        // New text data is received
-        DEBUG_PRINTF(PSTR("[%u] Received text: %s\n"), client_num, payload);
-        String command((char const*)payload);
-        process_websocket_command(command, client_num);
-        break;
-    }
+    web_socket_server.init();
+    web_socket_server.set_handler(WebSocketServer::Event::DISCONNECTED, [&](uint8_t client_id) {
+        debugger_clients_ids.erase(std::remove(debugger_clients_ids.begin(), debugger_clients_ids.end(), client_id),
+                                   debugger_clients_ids.end());
+    });
+    web_socket_server.set_handler(WebSocketServer::Event::START_READING_LOGS, [&](uint8_t client_id) {
+        debugger_clients_ids.push_back(client_id);
+        send_debug_logs();
+    });
+    web_socket_server.set_handler(WebSocketServer::Event::STOP_READING_LOGS, [&](uint8_t client_id) {
+        send_debug_logs();
+        debugger_clients_ids.erase(std::remove(debugger_clients_ids.begin(), debugger_clients_ids.end(), client_id),
+                                   debugger_clients_ids.end());
+    });
 }
 
 void
@@ -683,24 +668,13 @@ handle_file_list()
 }
 
 void
-process_websocket_command(String const& command, uint8_t client_num)
-{
-    if (command == F("start_reading_logs")) {
-        debugger_client_number    = client_num;
-        debugger_client_connected = true;
-        send_debug_logs();
-    }
-    else if (command == F("stop_reading_logs")) {
-        send_debug_logs();
-        debugger_client_connected = false;
-    }
-}
-
-void
 send_debug_logs()
 {
-    if (debugger_client_connected && (buffered_logger.get_log().length() > 0)) {
-        web_socket.sendTXT(debugger_client_number, buffered_logger.get_log());
+    if (!debugger_clients_ids.empty() && (buffered_logger.get_log().length() > 0)) {
+        auto const& log = buffered_logger.get_log();
+        for (auto client_id : debugger_clients_ids) {
+            web_socket_server.send(client_id, log);
+        }
         buffered_logger.clear();
     }
 }
