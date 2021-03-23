@@ -5,6 +5,7 @@
 
 #include <WebSocketsServer.h>
 
+// Facade for communication over WebSocket. Can be used by another servers to implement their functionality
 class WebSocketServer
 {
 public:
@@ -25,7 +26,7 @@ public:
     void set_handler(Event event, EventHandler handler);
 
     // Send to all connected clients
-    void send(uint8_t client_id, String const& message);
+    void send(uint8_t client_id, String& message);
 
 private:
     void             on_event(uint8_t client_id, WStype_t event_type, uint8_t* payload, size_t lenght);

@@ -3,7 +3,7 @@
 #include "logger.h"
 
 WebSocketServer::WebSocketServer()
-  : web_socket_(port_)
+  : web_socket_{port_}
   , handlers_{
         nullptr,
     }
@@ -32,9 +32,9 @@ WebSocketServer::set_handler(Event event, EventHandler handler)
 }
 
 void
-WebSocketServer::send(uint8_t client_id, String const& message)
+WebSocketServer::send(uint8_t client_id, String& message)
 {
-    web_socket_.sendTXT(client_id, buffered_logger.get_log());
+    web_socket_.sendTXT(client_id, message);
 }
 
 void

@@ -1,5 +1,12 @@
 #include "BufferedLogger.h"
 
+BufferedLogger&
+BufferedLogger::instance()
+{
+    static BufferedLogger buffered_logger;
+    return buffered_logger;
+}
+
 BufferedLogger::BufferedLogger(uint16_t buf_size)
   : buf_size_{buf_size}
 {

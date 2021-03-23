@@ -22,8 +22,18 @@
     <tr class="Help">
       <td class="Help">
         <p align="justify">This is SAD-Lamp Web interface. You can configure SAD-Lamp, change its settings,
-          upload firmware to ESP and main board.</p>
-        <p>Use "File Upload" to upload/delete/edit files on ESP.</p>
+          upload firmware to ESP and main board, etc.</p>
+        <p>Normally hardware serial port of ESP is connected to hardware serial port of Arduino, which makes impossible
+          to use logs via USB. Because of that you can use "Debug log" page to get logs from both: ESP and Arduino</p>
+        <p>Use "File Upload" to upload/delete/edit files to ESP using Web-UI.</p>
+        <p>
+          You can also establish FTP connection to SAD-Lamp, but there are some limitations:
+          <ul style="margin-top: -10px; margin-left: -20px;">
+            <li>You need to setup Filezilla(or other FTP client) to only allow 1 connection</li>
+            <li>Encryption is NOT supported, so you'll have to disable it in FTP client</li>
+            <li>Currently FTP connection is unstable</li>
+          </ul>
+        </p>
       </td>
     </tr>
   </table>
