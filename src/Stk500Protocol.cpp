@@ -86,7 +86,7 @@ Stk500Protocol::enter_prog_mode()
 }
 
 int
-Stk500Protocol::exitProg_mode()
+Stk500Protocol::exit_prog_mode()
 {
     return exec_cmd(0x51);
 }

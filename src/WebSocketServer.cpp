@@ -46,7 +46,7 @@ WebSocketServer::on_event(uint8_t client_id, WStype_t event_type, uint8_t* paylo
         IPAddress ip = web_socket_.remoteIP(client_id);
         DEBUG_PRINTF(PSTR("[%u] Connected from %d.%d.%d.%d url: %s\n"), client_id, ip[0], ip[1], ip[2], ip[3], payload);
         if (handlers_[static_cast<size_t>(Event::CONNECTED)] != nullptr) {
-            handlers_[static_cast<size_t>(Event::CONNECTED)](client_id);
+            handlers_[static_cast<size_t>(Event::CONNECTED)](client_id, "");
         }
         break;
     }
@@ -55,22 +55,50 @@ WebSocketServer::on_event(uint8_t client_id, WStype_t event_type, uint8_t* paylo
         // Websocket is disconnected
         DEBUG_PRINTF(PSTR("[%u] Disconnected!\n"), client_id);
         if (handlers_[static_cast<size_t>(Event::DISCONNECTED)] != nullptr) {
-            handlers_[static_cast<size_t>(Event::DISCONNECTED)](client_id);
+            handlers_[static_cast<size_t>(Event::DISCONNECTED)](client_id, "");
         }
         break;
 
     case WStype_TEXT:
         // New text data is received
-        DEBUG_PRINTF(PSTR("[%u] Received text: %s\n"), client_id, payload);
         String command((char const*)payload);
-        if ((command == F("start_reading_logs")) &&
-            (handlers_[static_cast<size_t>(Event::START_READING_LOGS)] != nullptr)) {
-            handlers_[static_cast<size_t>(Event::START_READING_LOGS)](client_id);
-        }
-        else if ((command == F("stop_reading_logs")) &&
-                 (handlers_[static_cast<size_t>(Event::STOP_READING_LOGS)] != nullptr)) {
-            handlers_[static_cast<size_t>(Event::STOP_READING_LOGS)](client_id);
-        }
+        process_command(client_id, command);
         break;
     }
+}
+
+void
+WebSocketServer::process_command(uint8_t client_id, String const& command)
+{
+    if (command == F("start_reading_logs")) {
+        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
+        if (handlers_[static_cast<size_t>(Event::START_READING_LOGS)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::START_READING_LOGS)](client_id, "");
+        }
+        return;
+    }
+    else if (command == F("stop_reading_logs")) {
+        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
+        if (handlers_[static_cast<size_t>(Event::STOP_READING_LOGS)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::STOP_READING_LOGS)](client_id, "");
+        }
+        return;
+    }
+
+    String arduino_command_str{"arduino_command"};
+    if (command.startsWith(arduino_command_str)) {
+        if (command.length() <= (arduino_command_str.length() + 1)) {
+            DEBUG_PRINTLN("ERROR: command \"arduino_command\" doesn't have parameters");
+            return;
+        }
+
+        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
+        auto parameters = command.substring(arduino_command_str.length() + 1);
+        if (handlers_[static_cast<size_t>(Event::ARDUINO_COMMAND)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::ARDUINO_COMMAND)](client_id, parameters);
+        }
+        return;
+    }
+
+    DEBUG_PRINTLN(PSTR("ERROR: received unknown command \"") + command + "\"");
 }

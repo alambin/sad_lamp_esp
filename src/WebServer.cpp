@@ -119,6 +119,9 @@ WebServer::init()
     web_server_.on(
         F("/edit"), HTTP_POST, [this]() { reply_ok(); }, [this]() { handle_file_upload(); });
 
+    // Upload Arduino firmware
+    web_server_.on(F("/upload_arduino_firmware"), HTTP_POST, [this]() { handle_upload_arduino_firmware(); });
+
     // Called when the url is not defined here
     // Use it to load content from SPIFFS
     web_server_.onNotFound([this]() {
@@ -148,6 +151,12 @@ void
 WebServer::loop()
 {
     web_server_.handleClient();
+}
+
+void
+WebServer::set_arduino_flash_handler(FlashHandler handler)
+{
+    flash_handler_ = handler;
 }
 
 void
@@ -508,4 +517,30 @@ WebServer::habdle_esp_sw_upload()
         DGB_STREAM.setDebugOutput(false);
     }
     yield();
+}
+
+void
+WebServer::handle_upload_arduino_firmware()
+{
+    if (web_server_.args() == 0) {
+        reply_server_error(F("Parameter \"path\" is not provided"));
+        return;
+    }
+    String path{web_server_.arg(F("path"))};
+    if (path.isEmpty() || path == "/") {
+        return reply_bad_request(F("Invalid path"));
+    }
+    if (!SPIFFS.exists(path)) {
+        return reply_not_found(F("File with firmware not found"));
+    }
+
+    DEBUG_PRINTLN(PSTR("handle_upload_arduino_firmware: ") + path);
+    reply_ok_with_msg("Flasing successfully initiated");
+
+    // TODO2: prepare simple "LED blinking" Arduino.bin and test its flashing via ESP.
+    // But beforethat you need to change hardware - connect GPIO0 to reset pin of Arduino
+
+    if (flash_handler_) {
+        flash_handler_(path);
+    }
 }

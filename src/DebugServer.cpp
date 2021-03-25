@@ -11,19 +11,24 @@ void
 DebugServer::init()
 {
     web_socket_server_.init();
-    web_socket_server_.set_handler(WebSocketServer::Event::DISCONNECTED, [&](uint8_t client_id) {
-        debugger_clients_ids_.erase(std::remove(debugger_clients_ids_.begin(), debugger_clients_ids_.end(), client_id),
-                                    debugger_clients_ids_.end());
-    });
-    web_socket_server_.set_handler(WebSocketServer::Event::START_READING_LOGS, [&](uint8_t client_id) {
-        debugger_clients_ids_.push_back(client_id);
-        send_buffered_logs();
-    });
-    web_socket_server_.set_handler(WebSocketServer::Event::STOP_READING_LOGS, [&](uint8_t client_id) {
-        send_buffered_logs();
-        debugger_clients_ids_.erase(std::remove(debugger_clients_ids_.begin(), debugger_clients_ids_.end(), client_id),
-                                    debugger_clients_ids_.end());
-    });
+    web_socket_server_.set_handler(
+        WebSocketServer::Event::DISCONNECTED, [&](uint8_t client_id, String const& parameters) {
+            debugger_clients_ids_.erase(
+                std::remove(debugger_clients_ids_.begin(), debugger_clients_ids_.end(), client_id),
+                debugger_clients_ids_.end());
+        });
+    web_socket_server_.set_handler(WebSocketServer::Event::START_READING_LOGS,
+                                   [&](uint8_t client_id, String const& parameters) {
+                                       debugger_clients_ids_.push_back(client_id);
+                                       send_buffered_logs();
+                                   });
+    web_socket_server_.set_handler(
+        WebSocketServer::Event::STOP_READING_LOGS, [&](uint8_t client_id, String const& parameters) {
+            send_buffered_logs();
+            debugger_clients_ids_.erase(
+                std::remove(debugger_clients_ids_.begin(), debugger_clients_ids_.end(), client_id),
+                debugger_clients_ids_.end());
+        });
 
     DEBUG_PRINTLN(F("Debug server initialized"));
 }
@@ -33,7 +38,7 @@ DebugServer::loop()
 {
     static unsigned long last_print{0};
     if (millis() - last_print > 1000) {
-        DEBUG_PRINT("+");  // TODO: just debug. Remove it in final version
+        // DEBUG_PRINT("+");  // TODO: just debug. Remove it in final version
         send_buffered_logs();
         last_print = millis();
     }

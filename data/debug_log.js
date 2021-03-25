@@ -11,8 +11,9 @@ connection.onerror = function (error) {
 };
 
 connection.onmessage = function (message) {
-  console.log('Server: ', message.data);
-  document.getElementById("debug_log").innerHTML += message.data;
+  var log_view = document.getElementById('debug_log');
+  log_view.innerHTML += message.data;
+  log_view.scrollTop = log_view.scrollHeight;  // Auto-scroll
 };
 
 connection.onclose = function () {
@@ -30,4 +31,14 @@ function toggle_reading_logs() {
     document.getElementById("reading_logs_button").textContent = "Stop reading logs";
     connection.send("start_reading_logs");
   }
+}
+
+function send_arduino_command() {
+  var message = document.getElementById("arduino_command").value;
+  if (message.length == 0) {
+    return;
+  }
+
+  connection.send("arduino_command " + message);
+  document.getElementById("arduino_command").value = "";
 }

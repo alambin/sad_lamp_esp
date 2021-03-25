@@ -34,6 +34,19 @@
             <li>Currently FTP connection is unstable</li>
           </ul>
         </p>
+        <b>Note</b>
+        <ul style="margin-top: 2px; margin-left: -20px;">
+          <li>When flashing ESP via Arduino IDE you should choose Tools -> Flash Size-> "1MB (FS:128KB .....). You need
+            to have at least 128 KB for file system on ESP. If you will add more files to ESP, you will probably need to
+            choose option with bigger file system size."</li>
+          <li>To flash ESP file system via Arduino IDE, you should choose Tools -> ESP8266 Sketch Data Upload. It will
+            take "data" subfolder from folder of your sketch and copy its content to SPIFFS of ESP</li>
+          <li>When you flash firmware or code to ESP via USB adapter, you need to change switch to "PROG" position. Also
+            you need to unplug it and plug again before each flashing.</li>
+          <li>By default when ESP doesn't have any WiFi settings, it creates its own WiFi access point with name
+            "SAD-Lamp_AP". You should connect to it (ex. using mobile phone) and provide WiFi settings (access point
+            name and password)</li>
+        </ul>
       </td>
     </tr>
   </table>

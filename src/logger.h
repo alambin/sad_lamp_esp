@@ -3,7 +3,7 @@
 
 //#define DBG_OUTPUT_PORT Serial
 #define DBG_OUTPUT_PORT Web
-constexpr bool should_log_to_serial = true;  // Set it if you want to log to both: web page and Serial
+constexpr bool should_log_to_serial = false;  // Set it if you want to log to both: web page and Serial
 
 #if DBG_OUTPUT_PORT == Serial
 #define DGB_STREAM Serial

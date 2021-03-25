@@ -4,7 +4,7 @@ function _(element) {
   return document.getElementById(element);
 }
 
-function upload_file() {
+function upload_esp_file() {
   var file = _("uploaded_file_name").files[0];
   uploaded_file_size = file.size;
   // alert(file.name+" | "+file.size+" | "+file.type);
@@ -43,4 +43,14 @@ function upload_error_handler(event) {
 
 function upload_abort_handler(event) {
   _("upload_status").innerHTML = "Upload Aborted!";
+}
+
+function upload_arduino_file() {
+  var formdata = new FormData();
+  formdata.append("path", _("arduino_bin_path").value);
+
+  var post_request = new XMLHttpRequest();
+  post_request.open("POST", "/upload_arduino_firmware", false);
+  post_request.send(formdata);
+  _("server_response").innerHTML = "Server response: " + post_request.response;
 }

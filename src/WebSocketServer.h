@@ -15,10 +15,11 @@ public:
         DISCONNECTED,
         START_READING_LOGS,
         STOP_READING_LOGS,
+        ARDUINO_COMMAND,
 
         NUM_OF_EVENTS
     };
-    using EventHandler = std::function<void(uint8_t client_id)>;
+    using EventHandler = std::function<void(uint8_t client_id, String const& parameters)>;
 
     WebSocketServer();
     void init();
@@ -29,9 +30,11 @@ public:
     void send(uint8_t client_id, String& message);
 
 private:
-    void             on_event(uint8_t client_id, WStype_t event_type, uint8_t* payload, size_t lenght);
-    const uint16_t   port_{81};
-    WebSocketsServer web_socket_;
+    void on_event(uint8_t client_id, WStype_t event_type, uint8_t* payload, size_t lenght);
+    void process_command(uint8_t client_id, String const& command);
+
+    const uint16_t                                                       port_{81};
+    WebSocketsServer                                                     web_socket_;
     std::array<EventHandler, static_cast<uint8_t>(Event::NUM_OF_EVENTS)> handlers_;
 };
 

@@ -12,7 +12,7 @@ public:
     Stk500Protocol(Stream* serial, int res_pin);
     bool setup_device();
     bool flash_page(uint8_t* load_addr, uint8_t* data);
-    int  exitProg_mode();
+    int  exit_prog_mode();
 
 private:
     void reset_mcu();

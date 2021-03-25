@@ -5,7 +5,7 @@
   <title>Settings</title>
   <link rel="stylesheet" href="style.css">
   <link type="image/x-icon" rel="shortcut icon" href="favicon.ico">
-  <script src="esp_firmware_upload.js"></script>
+  <script src="firmware_upload.js"></script>
 </head>
 
 <body>
@@ -19,15 +19,29 @@
   </div>
 
   <table class="details">
-    <caption>ESP Module</caption>
+    <caption>ESP module</caption>
     <tr>
       <td>
         <p>ESP firmware update</p>
-        <form id="upload_form" enctype="multipart/form-data" method="post">
-          <input type="file" name="uploaded_file_name" id="uploaded_file_name" onchange="upload_file()"><br>
+        <form id="esp_upload_form" enctype="multipart/form-data" method="post">
+          <input type="file" name="uploaded_file_name" id="uploaded_file_name" onchange="upload_esp_file()"><br>
           <progress id="upload_progress_bar" value="0" max="100" style="width:300px;"></progress>
           <p id="upload_status" style="font-weight: bold"></p>
           <p id="uploaded_size"></p>
+        </form>
+      </td>
+    </tr>
+  </table>
+
+  <table class="details">
+    <caption>Arduino module</caption>
+    <tr>
+      <td>
+        <p>Arduino firmware update</p>
+        <form id="arduino_upload_form" method="post" style="margin-bottom: 10px;">
+          <input name="arduino_bin_path" id="arduino_bin_path" value="/Arduino.bin">
+          <button type="button" onclick="upload_arduino_file()">Send</button>
+          <div name="server_response" id="server_response" style="margin-top: 15px;"></div>
         </form>
       </td>
     </tr>

@@ -4,22 +4,22 @@
 #include <FTPServer.h>
 #include <WiFiManager.h>
 
+#include "src/ArduinoCommunication.h"
 #include "src/DebugServer.h"
 #include "src/WebServer.h"
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-
-// TODO: refactor it in C++ way. TAKE INTO ACCOUNT classes in esp_avr_programmer.
-// So, after refactoring this project will be easily merged with esp_avr_programmer
-
+// TODO: provide options to WebUI to erase WiFi settings AND to perform reset.
 
 namespace
 {
-WebSocketServer web_socket_server;  // Use this instance as facade to implement other servers (ex. DebugServer)
-WebServer       web_server;
-DebugServer     debug_server(web_socket_server);
-FTPServer       ftp_server(SPIFFS);
+constexpr uint8_t    RESET_PIN{1};
+WebSocketServer      web_socket_server;  // Use this instance as facade to implement other servers (ex. DebugServer)
+WebServer            web_server;
+DebugServer          debug_server(web_socket_server);
+ArduinoCommunication arduino_communication(web_socket_server, web_server, RESET_PIN);
+FTPServer            ftp_server(SPIFFS);
 }  // namespace
 
 void
@@ -31,6 +31,9 @@ setup()
     while (!Serial) {
         ;
     }
+    // Initiate communication with Arduino as soon as possible, right after Serial is initialized.
+    arduino_communication.init();
+
     delay(3000);
 
     // ESP BUG: by some reason when WiFi connects in STA mode ("station"), it ruins WiFi on some routers.
@@ -47,6 +50,7 @@ setup()
 void
 loop()
 {
+    arduino_communication.loop();
     debug_server.loop();
     web_server.loop();
     ftp_server.handleFTP();

@@ -1,6 +1,8 @@
 #ifndef WEBSERVER_H_
 #define WEBSERVER_H_
 
+#include <functional>
+
 #include <ESP8266WebServer.h>
 #include <FS.h>
 
@@ -9,9 +11,12 @@
 class WebServer
 {
 public:
+    using FlashHandler = std::function<void(String const& filename)>;
     WebServer();
     void init();
     void loop();
+
+    void set_arduino_flash_handler(FlashHandler handler);
 
 private:
     void reply_ok();
@@ -28,10 +33,12 @@ private:
     void handle_file_upload();
     bool handle_file_read(String path);
     void habdle_esp_sw_upload();
+    void handle_upload_arduino_firmware();
 
     const uint16_t   port_{80};
     ESP8266WebServer web_server_;
     File             upload_file_;
+    FlashHandler     flash_handler_{nullptr};
 };
 
 #endif  // WEBSERVER_H_
