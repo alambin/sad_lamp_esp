@@ -54,3 +54,21 @@ function upload_arduino_file() {
   post_request.send(formdata);
   _("server_response").innerHTML = "Server response: " + post_request.response;
 }
+
+function reset_wifi_settings() {
+  if (confirm("Are you sure you want to reset WiFi settings?")) {
+    var post_request = new XMLHttpRequest();
+    post_request.open("POST", "/reset_wifi_settings", false);
+    post_request.send();
+    alert("WiFi settings cleared, ESP is rebooting. Connect to WiFi access point \"SAD-Lamp_AP\" to configure WiFi settings");
+  }
+}
+
+function reboot_esp() {
+  if (confirm("Are you sure you want to reboot ESP?")) {
+    var post_request = new XMLHttpRequest();
+    post_request.open("POST", "/reboot_esp", false);
+    post_request.send();
+    alert("ESP is rebooting...");
+  }
+}

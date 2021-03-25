@@ -5,7 +5,7 @@
   <title>Settings</title>
   <link rel="stylesheet" href="style.css">
   <link type="image/x-icon" rel="shortcut icon" href="favicon.ico">
-  <script src="firmware_upload.js"></script>
+  <script src="settings.js"></script>
 </head>
 
 <body>
@@ -22,7 +22,14 @@
     <caption>ESP module</caption>
     <tr>
       <td>
-        <p>ESP firmware update</p>
+        <button type="button" onclick="reset_wifi_settings()" style="margin-top: 15px; margin-bottom: 15px;">Reset WiFi
+          settings</button><br>
+        <button type="button" onclick="reboot_esp()" style="margin-bottom: 15px;">Reboot ESP</button>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p style="margin-bottom: 8px; margin-top: 10px;">ESP firmware update</p>
         <form id="esp_upload_form" enctype="multipart/form-data" method="post">
           <input type="file" name="uploaded_file_name" id="uploaded_file_name" onchange="upload_esp_file()"><br>
           <progress id="upload_progress_bar" value="0" max="100" style="width:300px;"></progress>
@@ -37,7 +44,7 @@
     <caption>Arduino module</caption>
     <tr>
       <td>
-        <p>Arduino firmware update</p>
+        <p style="margin-bottom: 8px; margin-top: 10px;">Arduino firmware update</p>
         <form id="arduino_upload_form" method="post" style="margin-bottom: 10px;">
           <input name="arduino_bin_path" id="arduino_bin_path" value="/Arduino.bin">
           <button type="button" onclick="upload_arduino_file()">Send</button>

@@ -63,7 +63,7 @@ background:#4a4a5f31;
 table.details{
 border-collapse:collapse;
 width:100%;
-margin:0 0 10px 0;
+margin-top: 10px;
 }
 table.details caption{
 font-weight:bold;
@@ -72,7 +72,7 @@ padding:3px;
 table.details td,
 table.details th{
 border:#aaa 1px solid;
-padding:1px 10px;
+padding-left: 10px;
 background:#fff;
 }
 table.details td.Help,

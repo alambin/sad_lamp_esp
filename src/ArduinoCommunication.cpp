@@ -21,7 +21,7 @@ ArduinoCommunication::init()
 {
     web_socket_server_.set_handler(WebSocketServer::Event::ARDUINO_COMMAND,
                                    [&](uint8_t client_id, String const& parameters) { send(parameters); });
-    web_server_.set_arduino_flash_handler([&](String const& filename) { flash_arduino(filename); });
+    web_server_.set_handler(WebServer::Event::FLASH_ARDUINO, [&](String const& filename) { flash_arduino(filename); });
 }
 
 void

@@ -10,16 +10,19 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: provide options to WebUI to erase WiFi settings AND to perform reset.
+// TODO: implement reconnection in case WiFi is disconnected
 
 namespace
 {
-constexpr uint8_t    RESET_PIN{1};
+constexpr uint8_t    RESET_PIN{0};
 WebSocketServer      web_socket_server;  // Use this instance as facade to implement other servers (ex. DebugServer)
 WebServer            web_server;
 DebugServer          debug_server(web_socket_server);
 ArduinoCommunication arduino_communication(web_socket_server, web_server, RESET_PIN);
 FTPServer            ftp_server(SPIFFS);
+
+bool                    is_reboot_requested{false};
+constexpr unsigned long reboot_delay{100};  // Reboot happens 100ms after receiving reboot request
 }  // namespace
 
 void
@@ -45,6 +48,13 @@ setup()
     web_server.init();
     SSDP_init();
     ftp_init();
+
+    web_server.set_handler(WebServer::Event::REBOOT_ESP, [&](String const& filename) { is_reboot_requested = true; });
+    web_server.set_handler(WebServer::Event::RESET_WIFI_SETTINGS, [&](String const& filename) {
+        WiFiManager wifi_manager;
+        wifi_manager.resetSettings();
+        is_reboot_requested = true;
+    });
 }
 
 void
@@ -54,6 +64,14 @@ loop()
     debug_server.loop();
     web_server.loop();
     ftp_server.handleFTP();
+
+    if (is_reboot_requested) {
+        static unsigned long reboot_request_time = millis();
+        if (millis() - reboot_request_time >= reboot_delay) {
+            ESP.restart();
+            delay(5000);
+        }
+    }
 }
 
 void

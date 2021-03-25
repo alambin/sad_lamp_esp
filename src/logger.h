@@ -3,7 +3,10 @@
 
 //#define DBG_OUTPUT_PORT Serial
 #define DBG_OUTPUT_PORT Web
-constexpr bool should_log_to_serial = false;  // Set it if you want to log to both: web page and Serial
+
+// Set it if you want to log to both: web page and Serial
+// It should be always disabled if ESP is connected to Arduino. Otherwise ESP will send a lot of logs into Arduino
+constexpr bool should_log_to_serial = false; 
 
 #if DBG_OUTPUT_PORT == Serial
 #define DGB_STREAM Serial

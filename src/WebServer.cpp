@@ -90,6 +90,9 @@ auto filename_less = [](String const& l, String const& r) {
 
 WebServer::WebServer()
   : web_server_{port_}
+  , handlers_{
+        nullptr,
+    }
 {
 }
 
@@ -119,9 +122,6 @@ WebServer::init()
     web_server_.on(
         F("/edit"), HTTP_POST, [this]() { reply_ok(); }, [this]() { handle_file_upload(); });
 
-    // Upload Arduino firmware
-    web_server_.on(F("/upload_arduino_firmware"), HTTP_POST, [this]() { handle_upload_arduino_firmware(); });
-
     // Called when the url is not defined here
     // Use it to load content from SPIFFS
     web_server_.onNotFound([this]() {
@@ -129,6 +129,10 @@ WebServer::init()
             reply_not_found(FPSTR(FILE_NOT_FOUND));
         }
     });
+
+    // HTTP pages for Settings
+    // Upload Arduino firmware
+    web_server_.on(F("/upload_arduino_firmware"), HTTP_POST, [this]() { handle_upload_arduino_firmware(); });
 
     // Update ESP firmware
     web_server_.on(
@@ -141,7 +145,9 @@ WebServer::init()
             ESP.restart();
         },
         [this]() { habdle_esp_sw_upload(); });
-    // web_server_.on("/get_esp_sw_upload_progress", handle_get_esp_sw_upload_progress);
+
+    web_server_.on(F("/reset_wifi_settings"), HTTP_POST, [this]() { handle_reset_wifi_settings(); });
+    web_server_.on(F("/reboot_esp"), HTTP_POST, [this]() { handle_reboot_esp(); });
 
     web_server_.begin();
     DEBUG_PRINTLN(F("Web server initialized"));
@@ -154,9 +160,9 @@ WebServer::loop()
 }
 
 void
-WebServer::set_arduino_flash_handler(FlashHandler handler)
+WebServer::set_handler(Event event, EventHandler handler)
 {
-    flash_handler_ = handler;
+    handlers_[static_cast<size_t>(event)] = handler;
 }
 
 void
@@ -537,10 +543,32 @@ WebServer::handle_upload_arduino_firmware()
     DEBUG_PRINTLN(PSTR("handle_upload_arduino_firmware: ") + path);
     reply_ok_with_msg("Flasing successfully initiated");
 
-    // TODO2: prepare simple "LED blinking" Arduino.bin and test its flashing via ESP.
+    // TODO: prepare simple "LED blinking" Arduino.bin and test its flashing via ESP.
     // But beforethat you need to change hardware - connect GPIO0 to reset pin of Arduino
 
-    if (flash_handler_) {
-        flash_handler_(path);
+    if (handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)] != nullptr) {
+        handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)](path);
+    }
+}
+
+void
+WebServer::handle_reset_wifi_settings()
+{
+    reply_ok();
+
+    DEBUG_PRINTLN(F("handle_reset_wifi_settings"));
+    if (handlers_[static_cast<size_t>(Event::RESET_WIFI_SETTINGS)] != nullptr) {
+        handlers_[static_cast<size_t>(Event::RESET_WIFI_SETTINGS)]("");
+    }
+}
+
+void
+WebServer::handle_reboot_esp()
+{
+    reply_ok();
+
+    DEBUG_PRINTLN(F("handle_reboot_esp"));
+    if (handlers_[static_cast<size_t>(Event::REBOOT_ESP)] != nullptr) {
+        handlers_[static_cast<size_t>(Event::REBOOT_ESP)]("");
     }
 }
