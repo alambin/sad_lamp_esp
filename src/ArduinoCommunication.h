@@ -19,7 +19,9 @@ public:
 
 private:
     void receive_line();
-    void flash_arduino(String const& path) const;
+    void flash_arduino(String const& path);
+    void enable_arduino_logs(bool enable);
+    void schedule_reconnect();
 
     WebSocketServer&               web_socket_server_;
     WebServer&                     web_server_;
@@ -28,6 +30,10 @@ private:
     std::array<char, buffer_size_> buffer_;
     uint16_t                       current_buf_position_{0};
     uint8_t                        reset_pin_;
+    bool                           arduino_logs_enabled_{true};
+
+    std::function<void()> scheduled_event_{nullptr};
+    unsigned long         scheduled_event_time_{0};
 };
 
 #endif  // ARDUINOCOMMUNICATION_H_

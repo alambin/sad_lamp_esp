@@ -34,7 +34,10 @@ WebSocketServer::set_handler(Event event, EventHandler handler)
 void
 WebSocketServer::send(uint8_t client_id, String& message)
 {
-    web_socket_.sendTXT(client_id, message);
+    // Use sendBIN() instead of sendTXT(). Binary-based communication let transfering special characters.
+    // Ex. Arduino when rebooted can send via Serial port some special (non printable) characters. It ruins text-based
+    // web-socket but binary-based web-socket handles it well.
+    web_socket_.sendBIN(client_id, (const uint8_t*)message.c_str(), message.length());
 }
 
 void

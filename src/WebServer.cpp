@@ -451,13 +451,13 @@ WebServer::handle_file_upload()
                 return reply_server_error(F("WRITE FAILED"));
             }
         }
-        DEBUG_PRINTLN(PSTR("Upload: WRITE, Bytes: ") + upload.currentSize);
+        DEBUG_PRINTLN(PSTR("Upload: WRITE, Bytes: ") + String(upload.currentSize));
     }
     else if (upload.status == UPLOAD_FILE_END) {
         if (upload_file_) {
             upload_file_.close();
         }
-        DEBUG_PRINTLN(PSTR("Upload: END, Size: ") + upload.totalSize);
+        DEBUG_PRINTLN(PSTR("Upload: END, Size: ") + String(upload.totalSize));
     }
 }
 
@@ -501,7 +501,7 @@ WebServer::habdle_esp_sw_upload()
     if (upload.status == UPLOAD_FILE_START) {
         DGB_STREAM.setDebugOutput(true);
         WiFiUDP::stopAll();
-        DEBUG_PRINTF(PSTR("Update: %s\n"), upload.filename.c_str());
+        DEBUG_PRINTLN(PSTR("Update: ") + upload.filename);
         uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
         if (!Update.begin(maxSketchSpace)) {  // start with max available size
             Update.printError(DGB_STREAM);
@@ -513,9 +513,9 @@ WebServer::habdle_esp_sw_upload()
         }
     }
     else if (upload.status == UPLOAD_FILE_END) {
-        reply_ok_with_msg(F("ESP firmware update completed!"));
+        reply_ok_with_msg(F("ESP firmware update completed! Rebooting..."));
         if (Update.end(true)) {  // true to set the size to the current progress
-            DEBUG_PRINTF(PSTR("Update Success: %u\nRebooting...\n"), upload.totalSize);
+            DEBUG_PRINTLN(PSTR("Update Success: ") + String(upload.totalSize) + PSTR("\nRebooting..."));
         }
         else {
             Update.printError(DGB_STREAM);

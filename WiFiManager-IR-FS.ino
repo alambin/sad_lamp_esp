@@ -10,12 +10,18 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
+// TODO: add possibility to reset Arduino
+// TODO: is it possible to track progress of rebooting in case ESP is rebooted (by pressing button or after
+//       firmware update) and Arduino is rebooted? May be for that we can send some data via WebSocket from ESP to WebUI
+//       in format "[ESP RESPONSE]<response string>" or may be in JSON format?
+// TODO: think about proper synchronisation between Arduino and ESP. Ex. how to synchronise tham after Arduino reboot?
+//       After ESP reboot? Etc.
+// TODO: multiple flashing of Arduino - text "Server response: Flasing successfully initiated" should be removed when
+//       you press "Send". Also ESP somehow should response when it finished flashing and probably when Arduino finished
+//       rebooting.
 // TODO: implement reconnection in case WiFi is disconnected
-
-// BUG: after flashing WebUI stops receiving logs. "debug_log.js:2 WebSocket connection to 'ws://192.168.43.31:81/'
-//      failed: Could not decode a text frame as UTF-8."". I guess this is because Arduino sends garbage in Serial when
-//      it boots. Can we turn off logging from/to Arduino for the moment of flashing? Also need to wait for "Alive"
-//      signal from Arduino to enable logs
+// TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, etc.
+// TODO: think about removing feature "disable logs from Arduino for time of flashing and subsequent reboot"
 
 namespace
 {

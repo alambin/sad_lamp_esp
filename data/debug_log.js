@@ -1,9 +1,13 @@
 var url = 'ws://' + location.hostname + ':81/';
-var connection = new WebSocket(url, ['arduino']);
 var log_enabled = false;
 
+// Send data as binary, NOT as text. If Arduino or ESP will log some special (non printable) character,
+// it will ruin text-based web-socket, but binary-based web-sockets handle it well.
+var connection = new WebSocket(url, ['arduino']);
+connection.binaryType = "arraybuffer";
+
 connection.onopen = function () {
-  connection.send('SAD-Lamp web UI is connected on ' + new Date());
+  // connection.send('SAD-Lamp web UI is connected on ' + new Date());
 };
 
 connection.onerror = function (error) {
@@ -12,7 +16,8 @@ connection.onerror = function (error) {
 
 connection.onmessage = function (message) {
   var log_view = document.getElementById('debug_log');
-  log_view.innerHTML += message.data;
+  //log_view.innerHTML += message.data;  // For text-based web-socket
+  log_view.innerHTML += new TextDecoder().decode(message.data);  // For binary-based web-socket
   log_view.scrollTop = log_view.scrollHeight;  // Auto-scroll
 };
 
