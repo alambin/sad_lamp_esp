@@ -543,9 +543,6 @@ WebServer::handle_upload_arduino_firmware()
     DEBUG_PRINTLN(PSTR("handle_upload_arduino_firmware: ") + path);
     reply_ok_with_msg("Flasing successfully initiated");
 
-    // TODO: prepare simple "LED blinking" Arduino.bin and test its flashing via ESP.
-    // But beforethat you need to change hardware - connect GPIO0 to reset pin of Arduino
-
     if (handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)] != nullptr) {
         handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)](path);
     }

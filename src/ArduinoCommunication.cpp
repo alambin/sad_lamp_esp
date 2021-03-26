@@ -6,6 +6,18 @@
 #include "Stk500Protocol.h"
 #include "logger.h"
 
+namespace
+{
+bool
+flash_page(IntelHexParser& hex_parser, Stk500Protocol& stk500_protocol)
+{
+    byte page[128];
+    hex_parser.get_memory_page(page);
+    byte* load_address = hex_parser.get_load_address();
+    return stk500_protocol.flash_page(load_address, page);
+}
+}  // namespace
+
 ArduinoCommunication::ArduinoCommunication(WebSocketServer& web_socket_server, WebServer& web_server, uint8_t reset_pin)
   : web_socket_server_(web_socket_server)
   , web_server_(web_server)
@@ -59,9 +71,7 @@ ArduinoCommunication::receive_line()
 void
 ArduinoCommunication::flash_arduino(String const& path) const
 {
-    // TODO: test it
     Serial.begin(57600);
-    // Serial.swap();
     Serial.flush();
     while (Serial.read() != -1) {
         ;
@@ -79,15 +89,21 @@ ArduinoCommunication::flash_arduino(String const& path) const
     IntelHexParser hex_parser;
 
     while (file.available()) {
-        byte   buff[50];
-        String data{file.readStringUntil('\n')};
-        data.getBytes(buff, data.length());
+        constexpr size_t buf_len{64};
+        unsigned char    buff[buf_len];
+        String           line{file.readStringUntil('\n')};
+        if (line.length() >= buf_len) {
+            DEBUG_PRINTLN(PSTR("ERROR: one line of hex file is longer than ") + String(buf_len) + PSTR(" characters"));
+            return;
+        }
+        line.getBytes(buff, line.length());
         hex_parser.parse_line(buff);
 
         if (hex_parser.is_page_ready()) {
-            byte* page    = hex_parser.get_memory_page();
-            byte* address = hex_parser.get_load_address();
-            stk500_protocol.flash_page(address, page);
+            if (!flash_page(hex_parser, stk500_protocol)) {
+                DEBUG_PRINTLN(F("ERROR: flashing of Arduino failed!"));
+                return;
+            }
         }
     }
 

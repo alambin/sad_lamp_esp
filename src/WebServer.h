@@ -7,7 +7,7 @@
 #include <ESP8266WebServer.h>
 #include <FS.h>
 
-// TODO: This web server handles filesystem operations (list, create, delete files, etc.) inside. Better to move init
+// TODO: This web server handles filesystem operations (list, create, delete files, etc.) inside. Better to move it
 // out to new entity. But for simple UI it is fine.
 class WebServer
 {

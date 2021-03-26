@@ -23,7 +23,7 @@ private:
     int  set_ext_prog_params();
 
     uint8_t exec_cmd(uint8_t cmd);
-    uint8_t exec_aram(uint8_t cmd, uint8_t* params, int count);
+    uint8_t exec_param(uint8_t cmd, uint8_t* params, int count);
     uint8_t send_bytes(uint8_t* bytes, int count);
     int     wait_for_serial_data(int data_count, int timeout);
     // int     get_flash_page_count(uint8_t flashData[][131]);

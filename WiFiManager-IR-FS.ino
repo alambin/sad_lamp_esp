@@ -12,6 +12,11 @@
 
 // TODO: implement reconnection in case WiFi is disconnected
 
+// BUG: after flashing WebUI stops receiving logs. "debug_log.js:2 WebSocket connection to 'ws://192.168.43.31:81/'
+//      failed: Could not decode a text frame as UTF-8."". I guess this is because Arduino sends garbage in Serial when
+//      it boots. Can we turn off logging from/to Arduino for the moment of flashing? Also need to wait for "Alive"
+//      signal from Arduino to enable logs
+
 namespace
 {
 constexpr uint8_t    RESET_PIN{0};
@@ -89,10 +94,6 @@ init_wifi()
 {
     // WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
     WiFiManager wifiManager;
-
-    // For debug info
-    // DGB_STREAM.setDebugOutput(true);
-    // wifiManager.setDebugOutput(true);
 
     // set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
     wifiManager.setAPCallback(configModeCallback);
