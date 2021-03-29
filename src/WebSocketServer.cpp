@@ -32,7 +32,7 @@ WebSocketServer::set_handler(Event event, EventHandler handler)
 }
 
 void
-WebSocketServer::send(uint8_t client_id, String& message)
+WebSocketServer::send(uint8_t client_id, String const& message)
 {
     // Use sendBIN() instead of sendTXT(). Binary-based communication let transfering special characters.
     // Ex. Arduino when rebooted can send via Serial port some special (non printable) characters. It ruins text-based
@@ -87,11 +87,19 @@ WebSocketServer::process_command(uint8_t client_id, String const& command)
         }
         return;
     }
+    else if (command == F("reboot_arduino")) {
+        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
+        if (handlers_[static_cast<size_t>(Event::REBOOT_ARDUINO)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::REBOOT_ARDUINO)](client_id, "");
+        }
+        return;
+    }
 
-    String arduino_command_str{"arduino_command"};
+    String arduino_command_str{F("arduino_command")};
+    String upload_arduino_firmware_str{F("upload_arduino_firmware")};
     if (command.startsWith(arduino_command_str)) {
         if (command.length() <= (arduino_command_str.length() + 1)) {
-            DEBUG_PRINTLN("ERROR: command \"arduino_command\" doesn't have parameters");
+            DEBUG_PRINTLN(F("ERROR: command \"arduino_command\" doesn't have parameters"));
             return;
         }
 
@@ -99,6 +107,30 @@ WebSocketServer::process_command(uint8_t client_id, String const& command)
         auto parameters = command.substring(arduino_command_str.length() + 1);
         if (handlers_[static_cast<size_t>(Event::ARDUINO_COMMAND)] != nullptr) {
             handlers_[static_cast<size_t>(Event::ARDUINO_COMMAND)](client_id, parameters);
+        }
+        return;
+    }
+    else if (command.startsWith(upload_arduino_firmware_str)) {
+        if (command.length() <= (upload_arduino_firmware_str.length() + 1)) {
+            String message{F("ERROR: command \"upload_arduino_firmware\" doesn't have parameters")};
+            DEBUG_PRINTLN(message);
+            send(client_id, message);
+            return;
+        }
+
+        auto first_quote_position  = upload_arduino_firmware_str.length() + 1;
+        auto second_quote_position = command.indexOf('"', first_quote_position + 1);
+        if (second_quote_position == -1) {
+            String message{F("ERROR: command \"upload_arduino_firmware\" should have \"path\" parameter in quotes")};
+            DEBUG_PRINTLN(message);
+            send(client_id, message);
+            return;
+        }
+
+        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
+        auto path = command.substring(first_quote_position + 1, second_quote_position);
+        if (handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)](client_id, path);
         }
         return;
     }

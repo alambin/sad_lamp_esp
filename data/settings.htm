@@ -24,7 +24,9 @@
       <td>
         <button type="button" onclick="reset_wifi_settings()" style="margin-top: 15px; margin-bottom: 15px;">Reset WiFi
           settings</button><br>
-        <button type="button" onclick="reboot_esp()" style="margin-bottom: 15px;">Reboot ESP</button>
+        <button type="button" onclick="reboot_esp()">Reboot ESP</button>
+        <div name="esp_reboot_status" id="esp_reboot_status" style="margin-top: 15px; margin-bottom: 15px; color:red;">
+        </div>
       </td>
     </tr>
     <tr>
@@ -44,11 +46,20 @@
     <caption>Arduino module</caption>
     <tr>
       <td>
+        <button type="button" onclick="reboot_arduino()" style="margin-top: 15px">Reboot
+          Arduino</button>
+        <div name="arduino_reboot_status" id="arduino_reboot_status"
+          style="margin-top: 15px; margin-bottom: 15px; color:red;"></div>
+      </td>
+    </tr>
+    <tr>
+      <td>
         <p style="margin-bottom: 8px; margin-top: 10px;">Arduino firmware update</p>
         <form id="arduino_upload_form" method="post" style="margin-bottom: 10px;">
           <input name="arduino_bin_path" id="arduino_bin_path" value="/Arduino.bin">
           <button type="button" onclick="upload_arduino_file()">Send</button>
-          <div name="server_response" id="server_response" style="margin-top: 15px;"></div>
+          <div name="upload_arduino_firmware_status" id="upload_arduino_firmware_status" style="margin-top: 15px;">
+          </div>
         </form>
       </td>
     </tr>

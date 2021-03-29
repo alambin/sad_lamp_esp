@@ -16,6 +16,8 @@ public:
         START_READING_LOGS,
         STOP_READING_LOGS,
         ARDUINO_COMMAND,
+        FLASH_ARDUINO,
+        REBOOT_ARDUINO,
 
         NUM_OF_EVENTS
     };
@@ -27,7 +29,7 @@ public:
     void set_handler(Event event, EventHandler handler);
 
     // Send to all connected clients
-    void send(uint8_t client_id, String& message);
+    void send(uint8_t client_id, String const& message);
 
 private:
     void on_event(uint8_t client_id, WStype_t event_type, uint8_t* payload, size_t lenght);

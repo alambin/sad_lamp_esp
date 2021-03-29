@@ -10,18 +10,19 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: add possibility to reset Arduino
-// TODO: is it possible to track progress of rebooting in case ESP is rebooted (by pressing button or after
-//       firmware update) and Arduino is rebooted? May be for that we can send some data via WebSocket from ESP to WebUI
-//       in format "[ESP RESPONSE]<response string>" or may be in JSON format?
+// DONE: when ESP firmware is loaded on 100%, it often doesn't display result message.
 // TODO: think about proper synchronisation between Arduino and ESP. Ex. how to synchronise tham after Arduino reboot?
 //       After ESP reboot? Etc.
-// TODO: multiple flashing of Arduino - text "Server response: Flasing successfully initiated" should be removed when
-//       you press "Send". Also ESP somehow should response when it finished flashing and probably when Arduino finished
-//       rebooting.
 // TODO: implement reconnection in case WiFi is disconnected
 // TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, etc.
 // TODO: think about removing feature "disable logs from Arduino for time of flashing and subsequent reboot"
+// TODO: dialog-box showing list of files on ESP to pick up Arduino firmware
+// BUG?: once I had 3 tabs in Chrome: File Upload, Settings and Debug log. After uploading ESP firmware, response from
+//       ESP was never delivered, even if I didn't perform reboot. Chrome was always showing some weird
+//       error(ERR_CONTENT_LENGTH_MISMATCH). Idk what helped. May be because I reflashed ESP not via air but via
+//       adapter. May be that I closed all tabs except of one. But something helped. In fact original code was not
+//       different from final, so reason is not in code change. May be simply ESP started rebooting faster, and because
+//       of that Chrome stopped giving error?
 
 namespace
 {
@@ -39,6 +40,9 @@ constexpr unsigned long reboot_delay{100};  // Reboot happens 100ms after receiv
 void
 setup()
 {
+    pinMode(RESET_PIN, OUTPUT);
+    digitalWrite(RESET_PIN, HIGH);
+
     WiFi.mode(WIFI_STA);  // explicitly set mode, esp defaults to STA+AP
 
     Serial.begin(9600);

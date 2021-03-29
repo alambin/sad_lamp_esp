@@ -16,7 +16,6 @@ public:
     {
         RESET_WIFI_SETTINGS = 0,
         REBOOT_ESP,
-        FLASH_ARDUINO,
 
         NUM_OF_EVENTS
     };
@@ -43,7 +42,6 @@ private:
     void handle_file_upload();
     bool handle_file_read(String path);
     void habdle_esp_sw_upload();
-    void handle_upload_arduino_firmware();
     void handle_reset_wifi_settings();
     void handle_reboot_esp();
 

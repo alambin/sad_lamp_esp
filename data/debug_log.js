@@ -7,26 +7,26 @@ var connection = new WebSocket(url, ['arduino']);
 connection.binaryType = "arraybuffer";
 
 connection.onopen = function () {
-  // connection.send('SAD-Lamp web UI is connected on ' + new Date());
+  connection.send("WebSocket connection opened");
 };
 
 connection.onerror = function (error) {
-  console.log('WebSocket Error ', error);
+  console.log("WebSocket error ", error);
 };
 
 connection.onmessage = function (message) {
-  var log_view = document.getElementById('debug_log');
+  var log_view = document.getElementById("debug_log");
   //log_view.innerHTML += message.data;  // For text-based web-socket
   log_view.innerHTML += new TextDecoder().decode(message.data);  // For binary-based web-socket
   log_view.scrollTop = log_view.scrollHeight;  // Auto-scroll
 };
 
 connection.onclose = function () {
-  console.log('WebSocket connection closed');
+  console.log("WebSocket connection closed");
 };
 
 function toggle_reading_logs() {
-  console.log('Toggle reading logs');
+  console.log("Toggle reading logs");
   if (log_enabled) {
     log_enabled = false;
     document.getElementById("reading_logs_button").textContent = "Start reading logs";

@@ -8,8 +8,6 @@ Stk500Protocol::Stk500Protocol(Stream* serial, int res_pin)
   : reset_pin_(res_pin)
   , serial_(serial)
 {
-    pinMode(reset_pin_, OUTPUT);
-    digitalWrite(reset_pin_, HIGH);
 }
 
 bool
@@ -44,10 +42,6 @@ bool
 Stk500Protocol::flash_page(uint8_t* load_addr, uint8_t* data)
 {
     uint8_t header[] = {0x64, 0x00, 0x80, 0x46};
-    // WTF?!?!? addr_hi should be load_addr[0]. But the same in another project.
-    // Looks like this is mistype, which migrated from one project to another. Look at http://www.amelek.gda.pl/avr/uisp/doc2525.pdf
-    // page 8 - firtst should go LOW, then HIGH address. This is how it is done here, despite of mixed up names.
-    // TODO: rename hi and lo properly
     int     s        = load_address(load_addr[0], load_addr[1]);
     DEBUG_PRINTF(PSTR("avrflash: loadAddr(%d,%d)=%d\n"), load_addr[1], load_addr[0], s);
 

@@ -2,9 +2,11 @@
 #define ARDUINOCOMMUNICATION_H_
 
 #include <array>
+#include <queue>
 
 #include <WString.h>
 
+#include "ArduinoCommand.h"
 #include "WebServer.h"
 #include "WebSocketServer.h"
 
@@ -19,9 +21,9 @@ public:
 
 private:
     void receive_line();
-    void flash_arduino(String const& path);
+    void flash_arduino(uint8_t client_id, String const& path);
+    void reboot_arduino(uint8_t client_id);
     void enable_arduino_logs(bool enable);
-    void schedule_reconnect();
 
     WebSocketServer&               web_socket_server_;
     WebServer&                     web_server_;
@@ -32,8 +34,10 @@ private:
     uint8_t                        reset_pin_;
     bool                           arduino_logs_enabled_{true};
 
-    std::function<void()> scheduled_event_{nullptr};
-    unsigned long         scheduled_event_time_{0};
+    std::queue<ArduinoCommand> command_queue_;
+
+    // std::function<void()> scheduled_event_{nullptr};
+    // unsigned long         scheduled_event_time_{0};
 };
 
 #endif  // ARDUINOCOMMUNICATION_H_

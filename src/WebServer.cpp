@@ -131,9 +131,6 @@ WebServer::init()
     });
 
     // HTTP pages for Settings
-    // Upload Arduino firmware
-    web_server_.on(F("/upload_arduino_firmware"), HTTP_POST, [this]() { handle_upload_arduino_firmware(); });
-
     // Update ESP firmware
     web_server_.on(
         F("/update"),
@@ -141,7 +138,7 @@ WebServer::init()
         [this]() {
             web_server_.sendHeader(F("Connection"), F("close"));
             web_server_.sendHeader(F("Access-Control-Allow-Origin"), "*");
-            reply_ok_with_msg(Update.hasError() ? F("FAIL") : F("OK"));
+            reply_ok_with_msg(Update.hasError() ? F("FAIL") : F("ESP firmware update completed! Rebooting..."));
             ESP.restart();
         },
         [this]() { habdle_esp_sw_upload(); });
@@ -513,7 +510,6 @@ WebServer::habdle_esp_sw_upload()
         }
     }
     else if (upload.status == UPLOAD_FILE_END) {
-        reply_ok_with_msg(F("ESP firmware update completed! Rebooting..."));
         if (Update.end(true)) {  // true to set the size to the current progress
             DEBUG_PRINTLN(PSTR("Update Success: ") + String(upload.totalSize) + PSTR("\nRebooting..."));
         }
@@ -526,32 +522,10 @@ WebServer::habdle_esp_sw_upload()
 }
 
 void
-WebServer::handle_upload_arduino_firmware()
-{
-    if (web_server_.args() == 0) {
-        reply_server_error(F("Parameter \"path\" is not provided"));
-        return;
-    }
-    String path{web_server_.arg(F("path"))};
-    if (path.isEmpty() || path == "/") {
-        return reply_bad_request(F("Invalid path"));
-    }
-    if (!SPIFFS.exists(path)) {
-        return reply_not_found(F("File with firmware not found"));
-    }
-
-    DEBUG_PRINTLN(PSTR("handle_upload_arduino_firmware: ") + path);
-    reply_ok_with_msg("Flasing successfully initiated");
-
-    if (handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)] != nullptr) {
-        handlers_[static_cast<size_t>(Event::FLASH_ARDUINO)](path);
-    }
-}
-
-void
 WebServer::handle_reset_wifi_settings()
 {
     reply_ok();
+    delay(500);  // Add delay to make sure response is sent to client
 
     DEBUG_PRINTLN(F("handle_reset_wifi_settings"));
     if (handlers_[static_cast<size_t>(Event::RESET_WIFI_SETTINGS)] != nullptr) {
