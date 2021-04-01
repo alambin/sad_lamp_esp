@@ -23,7 +23,13 @@ private:
     void receive_line();
     void flash_arduino(uint8_t client_id, String const& path);
     void reboot_arduino(uint8_t client_id);
+    void get_arduino_settings(uint8_t client_id);
     void enable_arduino_logs(bool enable);
+    void arduino_set_datetime(uint8_t client_id, String const& datetime);
+    void enable_arduino_alarm(uint8_t client_id, String const& enable);
+    void set_arduino_alarm_time(uint8_t client_id, String const& time);
+    void set_arduino_sunrise_duration(uint8_t client_id, String const& sunrise_duration);
+    void set_arduino_brightness(uint8_t client_id, String const& brightness);
 
     WebSocketServer&               web_socket_server_;
     WebServer&                     web_server_;
@@ -35,9 +41,7 @@ private:
     bool                           arduino_logs_enabled_{true};
 
     std::queue<ArduinoCommand> command_queue_;
-
-    // std::function<void()> scheduled_event_{nullptr};
-    // unsigned long         scheduled_event_time_{0};
+    String                     arduino_settings_json_;
 };
 
 #endif  // ARDUINOCOMMUNICATION_H_

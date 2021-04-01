@@ -1,5 +1,5 @@
 var url = 'ws://' + location.hostname + ':81/';
-var log_enabled = false;
+var alarm_enabled = false;
 
 // Send data as binary, NOT as text. If Arduino or ESP will log some special (non printable) character,
 // it will ruin text-based web-socket, but binary-based web-sockets handle it well.
@@ -7,7 +7,7 @@ var connection = new WebSocket(url, ['arduino']);
 connection.binaryType = "arraybuffer";
 
 connection.onerror = function (error) {
-  console.log("WebSocket error: ", error);
+  console.log("WebSocket error: " + error);
 };
 
 connection.onopen = function () {
@@ -26,7 +26,25 @@ connection.onmessage = function (message) {
       handle_upload_arduino_firmware_response(response);
       break;
     case reboot_arduino_cmd:
-      handle_reboot_arduino_cmd(response);
+      handle_reboot_arduino_response(response);
+      break;
+    case get_arduino_settings_cmd:
+      handle_get_arduino_settings_response(response);
+      break;
+    case set_arduino_datetime_cmd:
+      handle_set_arduino_datetime_response(response);
+      break;
+    case enable_arduino_alarm_cmd:
+      handle_enable_arduino_alarm_response(response);
+      break;
+    case set_arduino_alarm_time_cmd:
+      handle_set_arduino_alarm_time_response(response);
+      break;
+    case set_arduino_sunrise_duration_cmd:
+      handle_set_arduino_sunrise_duration_response(response);
+      break;
+    case set_arduino_brightness_cmd:
+      handle_set_arduino_brightness_response(response);
       break;
     default:
       console.log("ERROR: unknownd response: " + response);
@@ -39,6 +57,12 @@ var uploaded_file_size = 0;
 var command_in_progress = "";
 var upload_arduino_firmware_cmd = "upload_arduino_firmware";
 var reboot_arduino_cmd = "reboot_arduino";
+var get_arduino_settings_cmd = "get_arduino_settings";
+var set_arduino_datetime_cmd = "set_arduino_datetime";
+var enable_arduino_alarm_cmd = "enable_arduino_alarm";
+var set_arduino_alarm_time_cmd = "set_arduino_alarm_time";
+var set_arduino_sunrise_duration_cmd = "set_arduino_sunrise_duration";
+var set_arduino_brightness_cmd = "set_arduino_brightness";
 
 function _(element) {
   return document.getElementById(element);
@@ -54,13 +78,6 @@ function upload_esp_file() {
   var ajax = new XMLHttpRequest();
   ajax.upload.addEventListener("progress", upload_progress_handler, false);
   ajax.addEventListener("load", upload_complete_handler, false);
-  // ajax.onload = function (e) {
-  //   console.log("LAMBIN onload");
-  //   if (this.status == 200) {
-  //     console.log(this.response);
-  //     // this.responseText
-  //   }
-  // };
   ajax.addEventListener("error", upload_error_handler, false);
   ajax.addEventListener("abort", upload_abort_handler, false);
   ajax.open("POST", "/update");
@@ -107,13 +124,12 @@ function upload_arduino_file() {
 
 function set_server_response(element, response) {
   element.innerHTML = "Server response: " + response;
+  command_in_progress = "";
   if (response.startsWith("ERROR")) {
-    command_in_progress = "";
     element.style.color = "red";
     return;
   }
   if (response == "DONE") {
-    command_in_progress = "";
     element.style.color = "green";
     return;
   }
@@ -146,13 +162,6 @@ function reboot_esp() {
 }
 
 function reboot_arduino() {
-  // if (confirm("Are you sure you want to reboot Arduino?")) {
-  //   var post_request = new XMLHttpRequest();
-  //   post_request.open("POST", "/reboot_arduino", false);
-  //   post_request.send();
-  //   _("arduino_reboot_status").innerHTML = "Server response: Arduino reboot in progress...";
-  // }
-
   if (command_in_progress.length != 0) {
     alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
     return;
@@ -166,7 +175,282 @@ function reboot_arduino() {
   }
 }
 
-function handle_reboot_arduino_cmd(response) {
+function handle_reboot_arduino_response(response) {
   var view = _("arduino_reboot_status");
+  set_server_response(view, response);
+}
+
+function check_sunrise_duration() {
+  var value = _("sunrise_duration").value;
+  if (value > 1440) {
+    _("sunrise_duration").value = 1440;
+  } else if (value < 0) {
+    _("sunrise_duration").value = 0;
+  }
+}
+
+function disable_arduino_time_controls(disable) {
+  _("set_datetime").disabled = disable;
+  _("datetime").disabled = disable;
+}
+
+function disable_arduino_alarm_controls(disable) {
+  _("alarm").disabled = disable;
+  _("alarm_d0").disabled = disable;
+  _("alarm_d1").disabled = disable;
+  _("alarm_d2").disabled = disable;
+  _("alarm_d3").disabled = disable;
+  _("alarm_d4").disabled = disable;
+  _("alarm_d5").disabled = disable;
+  _("alarm_d6").disabled = disable;
+  _("set_alarm").disabled = disable;
+}
+
+function disable_arduino_sunrise_duration_controls(disable) {
+  _("sunrise_duration").disabled = disable;
+  _("set_sunrise_duration").disabled = disable;
+}
+
+function disable_arduino_brightness_controls(disable) {
+  _("brightness").disabled = disable;
+  _("set_brightness").disabled = disable;
+}
+
+function disable_arduino_settings_controls(disable) {
+  disable_arduino_time_controls(disable);
+  disable_arduino_alarm_controls(disable);
+  _("enable_alarm").disabled = disable;
+  disable_arduino_sunrise_duration_controls(disable);
+  disable_arduino_brightness_controls(disable);
+}
+
+function get_arduino_settings() {
+  disable_arduino_settings_controls(true);
+  command_in_progress = get_arduino_settings_cmd;
+  _("arduino_settings_status").innerHTML = "Updating Arduino settings...";
+  _("arduino_settings_status").style.color = "black";
+  connection.send(command_in_progress);
+}
+
+function handle_get_arduino_settings_response(response) {
+  command_in_progress = "";
+
+  var results_json = JSON.parse(response);
+  var time_str = results_json["time"];
+  var alarm_str = results_json["alarm"];
+  var sd_str = results_json["sunrise duration"];
+  var brightness_str = results_json["brightness"];
+
+  // Check for errors
+  var server_response = "";
+  if (time_str.startsWith("ERROR")) {
+    server_response += time_str + "; ";
+  } else {
+    set_arduino_time(time_str);
+    disable_arduino_time_controls(false);
+  }
+
+  if (alarm_str.startsWith("ERROR")) {
+    server_response += alarm_str + "; ";
+  } else {
+    set_arduino_alarm(alarm_str);
+  }
+
+  if (sd_str.startsWith("ERROR")) {
+    server_response += sd_str + "; ";
+  } else {
+    set_arduino_sunrise_duration(sd_str);
+    disable_arduino_sunrise_duration_controls(false);
+  }
+
+  if (brightness_str.startsWith("ERROR")) {
+    server_response += brightness_str + "; ";
+  } else {
+    set_arduino_brightness(brightness_str);
+  }
+
+  if (server_response.length != 0) {
+    _("arduino_settings_status").innerHTML = "Server response: " + server_response;
+    _("arduino_settings_status").style.color = "red";
+  } else {
+    _("arduino_settings_status").innerHTML = "Server response: DONE";
+    _("arduino_settings_status").style.color = "green";
+  }
+}
+
+function set_arduino_time(time_str) {
+  var year = time_str.substring(15, 19);
+  var day = time_str.substring(9, 11);
+  var month = time_str.substring(12, 14);
+  var hour = time_str.substring(0, 2);
+  var minute = time_str.substring(3, 5);
+  var sec = time_str.substring(6, 8);
+  var input_date = year + "-" + month + "-" + day + "T" + hour + ":" + minute + ":" + sec;
+  _("datetime").value = input_date;
+}
+
+function update_alarm_controls() {
+  disable_arduino_alarm_controls(!alarm_enabled);
+  _("enable_alarm").textContent = (alarm_enabled) ? "Disable" : "Enable";
+}
+
+function set_arduino_alarm(alarm_str) {
+  alarm_enabled = (alarm_str.substring(0, 1) == "E");
+  update_alarm_controls();
+  _("enable_alarm").disabled = false;
+
+  var hour = alarm_str.substring(2, 4);
+  var minute = alarm_str.substring(5, 7);
+  _("alarm").value = hour + ":" + minute;
+
+  var dow = alarm_str.substring(8, 10);
+  set_dow(dow);
+}
+
+function set_dow(dow) {
+  var dow_num = Number.parseInt(dow, 16);
+  for (i = 0; i < 7; i++) {
+    var mask = 1 << i;
+    var value = dow_num & mask;
+    _("alarm_d" + i).checked = (value != 0);
+  }
+}
+
+function get_dow() {
+  var dow_num = 0;
+  for (i = 0; i < 7; i++) {
+    if (!_("alarm_d" + i).checked) {
+      continue;
+    }
+    var mask = 1 << i;
+    dow_num |= mask;
+  }
+
+  return dow_num;
+}
+
+function set_arduino_sunrise_duration(sd_str) {
+  var sd_num = Number.parseInt(sd_str);
+  _("sunrise_duration").value = sd_num;
+}
+
+function set_arduino_brightness(brightness_str) {
+  var is_auto_mode = (brightness_str.substring(0, 1) == "A");
+  disable_arduino_brightness_controls(!is_auto_mode);
+  _("brightness_manual_mode_sign").style.visibility = is_auto_mode ? 'hidden' : 'visible';
+
+  var brightness = Number.parseInt(brightness_str.substring(2));
+  _("brightness").value = brightness;
+}
+
+function check_brightness() {
+  var value = _("brightness").value;
+  if (value > 1023) {
+    _("brightness").value = 1023;
+  } else if (value < 0) {
+    _("brightness").value = 0;
+  }
+}
+
+function set_datetime() {
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    return;
+  }
+
+  var datetime_str = _("datetime").value;
+  var year = datetime_str.substring(0, 4);
+  var month = datetime_str.substring(5, 7);
+  var day = datetime_str.substring(8, 10);
+  var hour = datetime_str.substring(11, 13);
+  var min = datetime_str.substring(14, 16);
+  var sec = datetime_str.substring(17, 19);
+  var arduino_datetime_str = hour + ":" + min + ":" + sec + " " + day + "/" + month + "/" + year;
+
+  _("arduino_settings_status").innerHTML = "Status: setting datetime...";
+  _("arduino_settings_status").style.color = "black";
+  command_in_progress = set_arduino_datetime_cmd;
+  connection.send(command_in_progress + " " + arduino_datetime_str);
+}
+
+function handle_set_arduino_datetime_response(response) {
+  var view = _("arduino_settings_status");
+  set_server_response(view, response);
+}
+
+function set_alarm() {
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    return;
+  }
+
+  var alarm_str = _("alarm").value;
+  var hour = alarm_str.substring(0, 2);
+  var min = alarm_str.substring(3, 5);
+  var dow = get_dow();
+  var arduino_alarm_str = hour + ":" + min + " " + dow.toString(16);
+
+  _("arduino_settings_status").innerHTML = "Status: setting alarm time...";
+  _("arduino_settings_status").style.color = "black";
+  command_in_progress = set_arduino_alarm_time_cmd;
+  connection.send(command_in_progress + " " + arduino_alarm_str);
+}
+
+function handle_set_arduino_alarm_time_response(response) {
+  var view = _("arduino_settings_status");
+  set_server_response(view, response);
+}
+
+function enable_alarm() {
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    return;
+  }
+
+  _("arduino_settings_status").innerHTML = "Status: " + (alarm_enabled ? "disabling" : "enabling") + " alarm...";
+  _("arduino_settings_status").style.color = "black";
+  command_in_progress = enable_arduino_alarm_cmd;
+  connection.send(command_in_progress + (alarm_enabled ? " D" : " E"));
+}
+
+function handle_enable_arduino_alarm_response(response) {
+  var view = _("arduino_settings_status");
+  set_server_response(view, response);
+
+  alarm_enabled = !alarm_enabled;
+  update_alarm_controls();
+}
+
+function set_sunrise_duration() {
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    return;
+  }
+
+  _("arduino_settings_status").innerHTML = "Status: setting sunrise duration...";
+  _("arduino_settings_status").style.color = "black";
+  command_in_progress = set_arduino_sunrise_duration_cmd;
+  connection.send(command_in_progress + " " + _("sunrise_duration").value.toString().padStart(4, "0"));
+}
+
+function handle_set_arduino_sunrise_duration_response(response) {
+  var view = _("arduino_settings_status");
+  set_server_response(view, response);
+}
+
+function set_brightness() {
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    return;
+  }
+
+  _("arduino_settings_status").innerHTML = "Status: setting brightness...";
+  _("arduino_settings_status").style.color = "black";
+  command_in_progress = set_arduino_brightness_cmd;
+  connection.send(command_in_progress + " " + _("brightness").value.toString().padStart(4, "0"));
+}
+
+function handle_set_arduino_brightness_response(response) {
+  var view = _("arduino_settings_status");
   set_server_response(view, response);
 }

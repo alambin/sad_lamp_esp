@@ -18,6 +18,12 @@ public:
         ARDUINO_COMMAND,
         FLASH_ARDUINO,
         REBOOT_ARDUINO,
+        GET_ARDUINO_SETTINGS,
+        ARDUINO_SET_DATETIME,
+        ENABLE_ARDUINO_ALARM,
+        SET_ARDUINO_ALARM_TIME,
+        SET_ARDUINO_SUNRISE_DURATION,
+        SET_ARDUINO_BRIGHTNESS,
 
         NUM_OF_EVENTS
     };
@@ -33,6 +39,7 @@ public:
 
 private:
     void on_event(uint8_t client_id, WStype_t event_type, uint8_t* payload, size_t lenght);
+    void trigger_event(uint8_t client_id, String const& input_data, String const& command_name, Event event);
     void process_command(uint8_t client_id, String const& command);
 
     const uint16_t                                                       port_{81};

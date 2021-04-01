@@ -1,5 +1,5 @@
 body{
-width:450px;
+width:500px;
 color:black;
 background:#fff;
 font-size:14px;
@@ -82,6 +82,23 @@ padding:1px 10px;
 background:#fff;
 font-size: 13px;
 }
+table.dow{
+  font-size: 13px;
+}
+table.dow td{
+  border: none;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+table.setting{
+  font-size: 13px;
+  width: 100%;
+}
+table.setting td{
+  border: none;
+  padding-left: 0px;
+  padding-right: 0px;
+}
 .content{
 background:#eee;
 border-radius:5px;
@@ -103,7 +120,7 @@ padding:0 0 0 10px;
 }
 .debug_log{
   height:300px;
-  width:450px;
+  width:500px;
   border:1px solid #ccc;
   font:12px Courier;
   overflow:auto;

@@ -8,7 +8,7 @@
   <script src="settings.js"></script>
 </head>
 
-<body>
+<body onload="get_arduino_settings();">
   <h3 class="top">SAD-Lamp - Settings</h3>
   <div class="menu">
     <a href="index.htm">Main</a>
@@ -45,15 +45,112 @@
   <table class="details">
     <caption>Arduino module</caption>
     <tr>
-      <td>
-        <button type="button" onclick="reboot_arduino()" style="margin-top: 15px">Reboot
-          Arduino</button>
-        <div name="arduino_reboot_status" id="arduino_reboot_status"
-          style="margin-top: 15px; margin-bottom: 15px; color:red;"></div>
+      <td style="border-bottom: none; border-right: none;">
+        <p
+          style="margin-top: 15px; font-size: 13px; display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
+          Time: <input id="datetime" type="datetime-local" name="datetime" step="1" style="margin-right: 1px;">
+        </p>
+      </td>
+      <td style="border-bottom: none; border-left: none; width: 40%;">
+        <button type="button" onclick="set_datetime()" id="set_datetime" style="margin-top: 15px;">Set</button>
       </td>
     </tr>
     <tr>
-      <td>
+      <td style="border-top:none; border-right: none; border-bottom: none;">
+        <div
+          style="margin-top: 15px; display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
+          <div style="font-size: 13px; padding-right: 10px;">Alarm:</div>
+          <div style="display: flex; flex-direction: row; justify-content: flex-start; align-items: center;">
+            <input id="alarm" type="time" name="alarm" step="60" style="margin-right: 10px; width: 80px;">
+            <table class="dow" id="dow" style="margin-right: 10px;">
+              <tr align="center">
+                <td><input type="checkbox" name="alarm_d0" id="alarm_d0"></td>
+                <td><input type="checkbox" name="alarm_d1" id="alarm_d1"></td>
+                <td><input type="checkbox" name="alarm_d2" id="alarm_d2"></td>
+                <td><input type="checkbox" name="alarm_d3" id="alarm_d3"></td>
+                <td><input type="checkbox" name="alarm_d4" id="alarm_d4"></td>
+                <td><input type="checkbox" name="alarm_d5" id="alarm_d5"></td>
+                <td><input type="checkbox" name="alarm_d6" id="alarm_d6"></td>
+              </tr>
+              <tr align="center">
+                <td>Mon</td>
+                <td>Tue</td>
+                <td>Wed</td>
+                <td>Thu</td>
+                <td>Fri</td>
+                <td>Sat</td>
+                <td>Sun</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </td>
+      <td style="border-top: none; border-left: none; border-bottom: none; width: 40%;">
+        <button type="button" onclick="set_alarm()" id="set_alarm" style="margin-top: 15px;">Set</button>
+        <button type="button" onclick="enable_alarm()" id="enable_alarm" style="margin-top: 15px;">Disable</button>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-top: none; border-right: none; border-bottom: none;">
+        <p style="margin-top: 15px; margin-bottom: 15px; font-size: 13px;">
+          <table class="setting">
+            <tr>
+              <td>Sunrise duration(minutes (0 - 1440)):</td>
+              <td style="width: 60px;">
+                <input type="number" name="sunrise_duration" id="sunrise_duration" min="0" max="1440" step="1"
+                  maxlength="4" onfocusout="check_sunrise_duration()" style="width: 60px;"
+                  oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);">
+              </td>
+            </tr>
+          </table>
+        </p>
+      </td>
+      <td style="border-top: none; border-left: none; border-bottom: none;  width: 40%;">
+        <button type="button" onclick="set_sunrise_duration()" id="set_sunrise_duration"
+          style="margin-top: 15px; margin-bottom: 15px;">Set</button>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-top: none; border-right: none; border-bottom: none; ">
+        <table class="setting">
+          <tr>
+            <td>Brightness (0 - 1023)):</td>
+            <td style="width: 60px;">
+              <input type="number" name="brightness" id="brightness" min="0" max="1023" step="1" maxlength="4"
+                onfocusout="check_brightness()" style="width: 60px;"
+                oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);">
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td style="border-top: none; border-left: none; border-bottom: none; font-size: 13px;  width: 40%;">
+        <div style="display: flex; flex-direction: row; justify-content:flex-start; align-items: center;">
+          <button type="button" onclick="set_brightness()" id="set_brightness">Set</button>
+          <div id="brightness_manual_mode_sign" style="margin-left: 5px; visibility: hidden;">[manual mode]</div>
+        </div>
+      </td>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-top: none; border-right: none;">
+        <div name="arduino_settings_status" id="arduino_settings_status" style="margin-top: 15px; margin-bottom: 15px;">
+        </div>
+      </td>
+      <td style="border-top: none; border-left: none;  width: 40%;">
+        <button type="button" onclick="get_arduino_settings()" id="set_brightness">Refresh settings</button>
+      </td>
+    <tr>
+    </tr>
+    <td style="border-right: none; border-top: none;">
+      <button type="button" onclick="reboot_arduino()" style="margin-top: 15px">Reboot
+        Arduino</button>
+      <div name="arduino_reboot_status" id="arduino_reboot_status"
+        style="margin-top: 15px; margin-bottom: 15px; color:red;"></div>
+    </td>
+    <td style="border-left: none; border-top: none;"></td>
+    </tr>
+    <tr>
+      <td style="border-right: none;">
         <p style="margin-bottom: 8px; margin-top: 10px;">Arduino firmware update</p>
         <form id="arduino_upload_form" method="post" style="margin-bottom: 10px;">
           <input name="arduino_bin_path" id="arduino_bin_path" value="/Arduino.bin">
@@ -62,6 +159,7 @@
           </div>
         </form>
       </td>
+      <td style="border-left: none;"></td>
     </tr>
   </table>
 </body>

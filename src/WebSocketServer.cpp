@@ -71,6 +71,21 @@ WebSocketServer::on_event(uint8_t client_id, WStype_t event_type, uint8_t* paylo
 }
 
 void
+WebSocketServer::trigger_event(uint8_t client_id, String const& input_data, String const& command_name, Event event)
+{
+    if (input_data.length() <= (command_name.length() + 1)) {
+        DEBUG_PRINTLN(PSTR("ERROR: command \"") + command_name + F("\" doesn't have parameters"));
+        return;
+    }
+
+    DEBUG_PRINTLN(PSTR("Received command \"") + input_data + "\"");
+    auto parameters = input_data.substring(command_name.length() + 1);
+    if (handlers_[static_cast<size_t>(event)] != nullptr) {
+        handlers_[static_cast<size_t>(event)](client_id, parameters);
+    }
+}
+
+void
 WebSocketServer::process_command(uint8_t client_id, String const& command)
 {
     if (command == F("start_reading_logs")) {
@@ -94,20 +109,43 @@ WebSocketServer::process_command(uint8_t client_id, String const& command)
         }
         return;
     }
+    else if (command == F("get_arduino_settings")) {
+        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
+        if (handlers_[static_cast<size_t>(Event::GET_ARDUINO_SETTINGS)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::GET_ARDUINO_SETTINGS)](client_id, "");
+        }
+        return;
+    }
 
     String arduino_command_str{F("arduino_command")};
     String upload_arduino_firmware_str{F("upload_arduino_firmware")};
+    String set_arduino_datetime_str{F("set_arduino_datetime")};
+    String enable_arduino_alarm_str{F("enable_arduino_alarm")};
+    String set_arduino_alarm_time_str{F("set_arduino_alarm_time")};
+    String set_arduino_sunrise_duration_str{F("set_arduino_sunrise_duration")};
+    String set_arduino_brightness_str{F("set_arduino_brightness")};
     if (command.startsWith(arduino_command_str)) {
-        if (command.length() <= (arduino_command_str.length() + 1)) {
-            DEBUG_PRINTLN(F("ERROR: command \"arduino_command\" doesn't have parameters"));
-            return;
-        }
-
-        DEBUG_PRINTLN(PSTR("Received command \"") + command + "\"");
-        auto parameters = command.substring(arduino_command_str.length() + 1);
-        if (handlers_[static_cast<size_t>(Event::ARDUINO_COMMAND)] != nullptr) {
-            handlers_[static_cast<size_t>(Event::ARDUINO_COMMAND)](client_id, parameters);
-        }
+        trigger_event(client_id, command, arduino_command_str, Event::ARDUINO_COMMAND);
+        return;
+    }
+    else if (command.startsWith(set_arduino_datetime_str)) {
+        trigger_event(client_id, command, set_arduino_datetime_str, Event::ARDUINO_SET_DATETIME);
+        return;
+    }
+    else if (command.startsWith(enable_arduino_alarm_str)) {
+        trigger_event(client_id, command, enable_arduino_alarm_str, Event::ENABLE_ARDUINO_ALARM);
+        return;
+    }
+    else if (command.startsWith(set_arduino_alarm_time_str)) {
+        trigger_event(client_id, command, set_arduino_alarm_time_str, Event::SET_ARDUINO_ALARM_TIME);
+        return;
+    }
+    else if (command.startsWith(set_arduino_sunrise_duration_str)) {
+        trigger_event(client_id, command, set_arduino_sunrise_duration_str, Event::SET_ARDUINO_SUNRISE_DURATION);
+        return;
+    }
+    else if (command.startsWith(set_arduino_brightness_str)) {
+        trigger_event(client_id, command, set_arduino_brightness_str, Event::SET_ARDUINO_BRIGHTNESS);
         return;
     }
     else if (command.startsWith(upload_arduino_firmware_str)) {
