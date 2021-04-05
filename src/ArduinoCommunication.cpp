@@ -71,19 +71,19 @@ ArduinoCommunication::init()
                                    [&](uint8_t client_id, String const&) { get_arduino_settings(client_id); });
     web_socket_server_.set_handler(
         WebSocketServer::Event::ARDUINO_SET_DATETIME,
-        [&](uint8_t client_id, String const& parameters) { arduino_set_datetime(client_id, parameters); });
+        [&](uint8_t client_id, String const& parameters) { send_set_command("st", client_id, parameters); });
     web_socket_server_.set_handler(
         WebSocketServer::Event::ENABLE_ARDUINO_ALARM,
-        [&](uint8_t client_id, String const& parameters) { enable_arduino_alarm(client_id, parameters); });
+        [&](uint8_t client_id, String const& parameters) { send_set_command("ea", client_id, parameters); });
     web_socket_server_.set_handler(
         WebSocketServer::Event::SET_ARDUINO_ALARM_TIME,
-        [&](uint8_t client_id, String const& parameters) { set_arduino_alarm_time(client_id, parameters); });
+        [&](uint8_t client_id, String const& parameters) { send_set_command("sa", client_id, parameters); });
     web_socket_server_.set_handler(
         WebSocketServer::Event::SET_ARDUINO_SUNRISE_DURATION,
-        [&](uint8_t client_id, String const& parameters) { set_arduino_sunrise_duration(client_id, parameters); });
+        [&](uint8_t client_id, String const& parameters) { send_set_command("ssd", client_id, parameters); });
     web_socket_server_.set_handler(
         WebSocketServer::Event::SET_ARDUINO_BRIGHTNESS,
-        [&](uint8_t client_id, String const& parameters) { set_arduino_brightness(client_id, parameters); });
+        [&](uint8_t client_id, String const& parameters) { send_set_command("sb", client_id, parameters); });
 }
 
 void
@@ -386,120 +386,28 @@ ArduinoCommunication::enable_arduino_logs(bool enable)
 }
 
 void
-ArduinoCommunication::arduino_set_datetime(uint8_t client_id, String const& datetime)
+ArduinoCommunication::send_set_command(String const& set_command_name, uint8_t client_id, String const& parameters)
 {
-    String         command{String(FPSTR(arduino_set_time_cmd)) + datetime + '\n'};
-    ArduinoCommand set_time_cmd(
-        "st",
-        [command]() { Serial.print(command); },
-        [&, client_id](String const& response) {
-            if (response == FPSTR(arduino_set_time_ack)) {
-                DEBUG_PRINTLN(F("Arduino set datetime finished"));
-                web_socket_server_.send(client_id, F("DONE"));
+    String         command_str{String(F("ESP: ")) + set_command_name + ' ' + parameters + '\n'};
+    String         ack_str{String(F("TOESP: ")) + set_command_name + F(" ACK")};
+    ArduinoCommand command(
+        set_command_name,
+        [command_str]() { Serial.print(command_str); },
+        [&, ack_str, set_command_name](String const& response) {
+            if (response.startsWith(ack_str)) {
+                DEBUG_PRINTLN(String(F("Arduino command \"")) + set_command_name + FPSTR("\" finished"));
+                if (response.length() > (ack_str.length() + 1)) {
+                    web_socket_server_.send(client_id, response.substring(ack_str.length() + 1));
+                }
+                else {
+                    web_socket_server_.send(client_id, F("DONE"));
+                }
                 return true;
             }
             return false;
         });
-    set_time_cmd.response_timeout_handler = [&, client_id]() {
-        web_socket_server_.send(client_id, FPSTR(error_timeout));
-    };
-    set_time_cmd.request_start_time = 0;  // Start immediately
-    set_time_cmd.response_timeout   = default_arduino_cmd_timeout;
-    command_queue_.push(set_time_cmd);
-}
-
-void
-ArduinoCommunication::enable_arduino_alarm(uint8_t client_id, String const& enable)
-{
-    String         command{String(FPSTR(arduino_enable_alarm_cmd)) + enable + '\n'};
-    ArduinoCommand enable_alarm_cmd(
-        "ea",
-        [command]() { Serial.print(command); },
-        [&](String const& response) {
-            if (response.startsWith(FPSTR(arduino_enable_alarm_ack))) {
-                DEBUG_PRINTLN(F("Arduino enable alarm finished"));
-                web_socket_server_.send(
-                    client_id,
-                    response.substring(sizeof(arduino_enable_alarm_ack) / sizeof(arduino_enable_alarm_ack[0]) - 1));
-                return true;
-            }
-            return false;
-        });
-    enable_alarm_cmd.response_timeout_handler = [&, client_id]() {
-        web_socket_server_.send(client_id, FPSTR(error_timeout));
-    };
-    enable_alarm_cmd.request_start_time = 0;  // Start immediately
-    enable_alarm_cmd.response_timeout   = default_arduino_cmd_timeout;
-    command_queue_.push(enable_alarm_cmd);
-}
-
-void
-ArduinoCommunication::set_arduino_alarm_time(uint8_t client_id, String const& time)
-{
-    String         command{String(FPSTR(arduino_set_alarm_cmd)) + time + '\n'};
-    ArduinoCommand set_alarm_cmd(
-        "sa",
-        [command]() { Serial.print(command); },
-        [&](String const& response) {
-            if (response == FPSTR(arduino_set_alarm_ack)) {
-                DEBUG_PRINTLN(F("Arduino set alarm finished"));
-                web_socket_server_.send(client_id, F("DONE"));
-                return true;
-            }
-            return false;
-        });
-    set_alarm_cmd.response_timeout_handler = [&, client_id]() {
-        web_socket_server_.send(client_id, FPSTR(error_timeout));
-    };
-    set_alarm_cmd.request_start_time = 0;  // Start immediately
-    set_alarm_cmd.response_timeout   = default_arduino_cmd_timeout;
-    command_queue_.push(set_alarm_cmd);
-}
-
-void
-ArduinoCommunication::set_arduino_sunrise_duration(uint8_t client_id, String const& sunrise_duration)
-{
-    String         command{String(FPSTR(arduino_set_sunrise_duration_cmd)) + sunrise_duration + '\n'};
-    ArduinoCommand set_sunrise_duration(
-        "ssd",
-        [command]() { Serial.print(command); },
-        [&](String const& response) {
-            if (response == FPSTR(arduino_set_sunrise_duration_ack)) {
-                DEBUG_PRINTLN(F("Arduino set sunrise duration finished"));
-                web_socket_server_.send(client_id, F("DONE"));
-                return true;
-            }
-            return false;
-        });
-    set_sunrise_duration.response_timeout_handler = [&, client_id]() {
-        web_socket_server_.send(client_id, FPSTR(error_timeout));
-    };
-    set_sunrise_duration.request_start_time = 0;  // Start immediately
-    set_sunrise_duration.response_timeout   = default_arduino_cmd_timeout;
-    command_queue_.push(set_sunrise_duration);
-}
-
-void
-ArduinoCommunication::set_arduino_brightness(uint8_t client_id, String const& brightness)
-{
-    String         command{String(FPSTR(arduino_set_brightness_cmd)) + brightness + '\n'};
-    ArduinoCommand set_brightness(
-        "sb",
-        [command]() { Serial.print(command); },
-        [&](String const& response) {
-            if (response.startsWith(FPSTR(arduino_set_brightness_ack))) {
-                DEBUG_PRINTLN(F("Arduino set brightness finished"));
-                web_socket_server_.send(
-                    client_id,
-                    response.substring(sizeof(arduino_set_brightness_ack) / sizeof(arduino_set_brightness_ack[0]) - 1));
-                return true;
-            }
-            return false;
-        });
-    set_brightness.response_timeout_handler = [&, client_id]() {
-        web_socket_server_.send(client_id, FPSTR(error_timeout));
-    };
-    set_brightness.request_start_time = 0;  // Start immediately
-    set_brightness.response_timeout   = default_arduino_cmd_timeout;
-    command_queue_.push(set_brightness);
+    command.response_timeout_handler = [&, client_id]() { web_socket_server_.send(client_id, FPSTR(error_timeout)); };
+    command.request_start_time       = 0;  // Start immediately
+    command.response_timeout         = default_arduino_cmd_timeout;
+    command_queue_.push(command);
 }

@@ -11,7 +11,6 @@ connection.onerror = function (error) {
 };
 
 connection.onopen = function () {
-  console.log("WebSocket connection opened");
 };
 
 connection.onclose = function () {
@@ -365,6 +364,9 @@ function set_datetime() {
   var hour = datetime_str.substring(11, 13);
   var min = datetime_str.substring(14, 16);
   var sec = datetime_str.substring(17, 19);
+  if (sec.length == 0) {
+    sec = "00";
+  }
   var arduino_datetime_str = hour + ":" + min + ":" + sec + " " + day + "/" + month + "/" + year;
 
   _("arduino_settings_status").innerHTML = "Status: setting datetime...";

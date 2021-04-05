@@ -25,11 +25,7 @@ private:
     void reboot_arduino(uint8_t client_id);
     void get_arduino_settings(uint8_t client_id);
     void enable_arduino_logs(bool enable);
-    void arduino_set_datetime(uint8_t client_id, String const& datetime);
-    void enable_arduino_alarm(uint8_t client_id, String const& enable);
-    void set_arduino_alarm_time(uint8_t client_id, String const& time);
-    void set_arduino_sunrise_duration(uint8_t client_id, String const& sunrise_duration);
-    void set_arduino_brightness(uint8_t client_id, String const& brightness);
+    void send_set_command(String const& set_command_name, uint8_t client_id, String const& parameters);
 
     WebSocketServer&               web_socket_server_;
     WebServer&                     web_server_;

@@ -10,7 +10,6 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: refactor code to send commands in ArduinoCommunication: remove duplication
 // TODO: add some icon showing progress of INITIAL loading of data from Arduino?
 // TODO: think about proper synchronisation between Arduino and ESP. Ex. how to synchronise them after Arduino reboot?
 //       After ESP reboot? Etc.

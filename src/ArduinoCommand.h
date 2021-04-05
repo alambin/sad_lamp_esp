@@ -22,7 +22,7 @@ struct ArduinoCommand
     // Returns true in case expected response/acknowledgment was received
     std::function<bool(String const& response)> response_handler;
 
-    String const& name;
+    String const  name;
     unsigned long request_start_time{0};  // Start immediately
     unsigned long response_timeout{3000};
     bool          execution_started{false};

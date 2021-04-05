@@ -7,7 +7,6 @@ var connection = new WebSocket(url, ['arduino']);
 connection.binaryType = "arraybuffer";
 
 connection.onopen = function () {
-  connection.send("WebSocket connection opened");
 };
 
 connection.onerror = function (error) {
@@ -17,7 +16,7 @@ connection.onerror = function (error) {
 connection.onmessage = function (message) {
   var log_view = document.getElementById("debug_log");
   //log_view.innerHTML += message.data;  // For text-based web-socket
-  log_view.innerHTML += new TextDecoder().decode(message.data);  // For binary-based web-socket
+  log_view.innerText += new TextDecoder().decode(message.data);  // For binary-based web-socket
   log_view.scrollTop = log_view.scrollHeight;  // Auto-scroll
 };
 
