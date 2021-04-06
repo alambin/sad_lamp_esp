@@ -11,6 +11,7 @@ namespace
 constexpr unsigned long arduino_reconnect_timeout{2000};
 constexpr unsigned long default_arduino_cmd_timeout{2000};
 
+// Commands to Arduino
 // Do NOT use println for inter-board communication, because for ESP Serial.println() adds both:
 // '\r' and '\n". So, on another side you will have to filter out '\r'
 constexpr char arduino_connect_cmd[] PROGMEM              = "ESP: connect\n";
@@ -33,6 +34,9 @@ constexpr char arduino_set_brightness_cmd[] PROGMEM       = "ESP: sb ";
 constexpr char arduino_set_brightness_ack[] PROGMEM       = "TOESP: sb ACK ";
 constexpr char arduino_get_brightness_cmd[] PROGMEM       = "ESP: gb\n";
 constexpr char arduino_get_brightness_ack[] PROGMEM       = "TOESP: gb ACK ";
+
+// Commands from Arduino
+constexpr char esp_reset_cmd[] PROGMEM = "TOESP: RESETESP";
 
 constexpr char error_timeout[] PROGMEM = "ERROR: timeout";
 constexpr char hex_chars[] PROGMEM     = "0123456789ABCDEF";
@@ -124,6 +128,12 @@ ArduinoCommunication::send(String const& message) const
 }
 
 void
+ArduinoCommunication::set_handler(Event event, EventHandler handler)
+{
+    handlers_[static_cast<size_t>(event)] = handler;
+}
+
+void
 ArduinoCommunication::receive_line()
 {
     // Non-blocking read from serial port.
@@ -151,20 +161,34 @@ ArduinoCommunication::receive_line()
             // continue;
         }
 
-        buffer_[current_buf_position_++] = 0;
-        current_buf_position_            = 0;
+        buffer_[current_buf_position_] = 0;
+        current_buf_position_          = 0;
         String message{buffer_.data()};
         if (arduino_logs_enabled_) {
             DEBUG_PRINTLN(PSTR("FROM ARDUINO: ") + message);
         }
 
-        if (!command_queue_.empty()) {
-            auto const& current_command = command_queue_.front();
-            if (current_command.execution_started) {
-                if (current_command.response_handler(message)) {
-                    command_queue_.pop();
-                }
+        process_message_from_arduino(message);
+    }
+}
+
+void
+ArduinoCommunication::process_message_from_arduino(String const& message)
+{
+    // Check if received message is response for currently executed command
+    if (!command_queue_.empty()) {
+        auto const& current_command = command_queue_.front();
+        if (current_command.execution_started) {
+            if (current_command.response_handler(message)) {
+                command_queue_.pop();
             }
+        }
+    }
+
+    // Received message can also be a command from Arduino
+    if (message == FPSTR(esp_reset_cmd)) {
+        if (handlers_[static_cast<size_t>(Event::RESET_WIFI_SETTINGS)] != nullptr) {
+            handlers_[static_cast<size_t>(Event::RESET_WIFI_SETTINGS)]();
         }
     }
 }

@@ -10,12 +10,10 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: what if user entered wrong password for WiFi? ESP will not be accessible at all. How to reset ESP? May be
-//       enable some command via Arduino (is it possible?). If not, may be do as on Yeelight laps (sequence of turn-on,
-//       turn-off periods for about 2 seconds)? Or the same sequence but via potentiometer?
 // TODO: set WebLogger for WM? So that WM will not spam logs in Serial
 // TODO: ESP (and Arduino?) deep sleep
-// TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, etc.
+// TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, how to reset ESP using
+//       potentiometer, etc.
 // TODO: think about removing feature "disable logs from Arduino for time of flashing and subsequent reboot"
 // TODO: dialog-box showing list of files on ESP to pick up Arduino firmware
 
@@ -68,11 +66,17 @@ setup()
     ftp_init();
 
     web_server.set_handler(WebServer::Event::REBOOT_ESP, [&](String const& filename) { is_reboot_requested = true; });
-    web_server.set_handler(WebServer::Event::RESET_WIFI_SETTINGS, [&](String const& filename) {
+
+    // Request to reset wifi settings can come from WebUI and from Arduino (via potentiometer and switching from auto to
+    // manual mode and vice versa)
+    auto WiFiSettingsResetHandler = [&]() {
         WiFiManager wifi_manager;
         wifi_manager.erase();
         is_reboot_requested = true;
-    });
+    };
+    web_server.set_handler(WebServer::Event::RESET_WIFI_SETTINGS, [&](String const&) { WiFiSettingsResetHandler(); });
+    arduino_communication.set_handler(ArduinoCommunication::Event::RESET_WIFI_SETTINGS,
+                                      [&]() { WiFiSettingsResetHandler(); });
 }
 
 void

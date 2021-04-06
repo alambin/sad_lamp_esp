@@ -13,14 +13,25 @@
 class ArduinoCommunication
 {
 public:
-    explicit ArduinoCommunication(WebSocketServer& web_socket_server, WebServer& web_server, uint8_t reset_pin);
+    enum class Event : uint8_t
+    {
+        RESET_WIFI_SETTINGS = 0,
+
+        NUM_OF_EVENTS
+    };
+    using EventHandler = std::function<void()>;
+
+    ArduinoCommunication(WebSocketServer& web_socket_server, WebServer& web_server, uint8_t reset_pin);
     void init();
     void loop();
 
     void send(String const& message) const;
 
+    void set_handler(Event event, EventHandler handler);
+
 private:
     void receive_line();
+    void process_message_from_arduino(String const& message);
     void flash_arduino(uint8_t client_id, String const& path);
     void reboot_arduino(uint8_t client_id);
     void get_arduino_settings(uint8_t client_id);
@@ -38,6 +49,8 @@ private:
 
     std::queue<ArduinoCommand> command_queue_;
     String                     arduino_settings_json_;
+
+    std::array<EventHandler, static_cast<uint8_t>(Event::NUM_OF_EVENTS)> handlers_;
 };
 
 #endif  // ARDUINOCOMMUNICATION_H_
