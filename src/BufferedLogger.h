@@ -1,10 +1,10 @@
 #ifndef BUFFEREDLOGGER_H_
 #define BUFFEREDLOGGER_H_
 
-#include <Print.h>
+#include <Stream.h>
 #include <WString.h>
 
-class BufferedLogger : public Print
+class BufferedLogger : public Stream
 {
 public:
     // Singleton
@@ -21,10 +21,16 @@ public:
     void    clear();
 
     // Declare this function for compatibility with Serial
-    void
-    setDebugOutput(bool)
-    {
-    }
+    void setDebugOutput(bool);
+
+    // Implement dummy Stream interface operations. Right now BufferedLogger is casted to Stream only in WiFiManager,
+    // which, in fact, doesn't use any of these Stream functions
+    int    available() override;
+    int    read() override;
+    int    peek() override;
+    size_t readBytes(char*, size_t) override;
+    size_t readBytes(uint8_t*, size_t) override;
+    String readString() override;
 
 private:
     explicit BufferedLogger(uint16_t buf_size = 2 * 1024);

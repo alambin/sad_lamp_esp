@@ -175,8 +175,20 @@ function reboot_arduino() {
 }
 
 function handle_reboot_arduino_response(response) {
-  var view = _("arduino_reboot_status");
-  set_server_response(view, response);
+  // Do NOT call set_server_response() here, because there are several responses from ESP during reboot and we need to
+  // clear command_in_progress only in case of error or successfull finish
+  var element = _("arduino_reboot_status");
+  element.innerHTML = "Server response: " + response;
+  if (response.startsWith("ERROR")) {
+    command_in_progress = "";
+    element.style.color = "red";
+    return;
+  }
+  if (response == "DONE") {
+    command_in_progress = "";
+    element.style.color = "green";
+    return;
+  }
 }
 
 function check_sunrise_duration() {

@@ -10,7 +10,6 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: set WebLogger for WM? So that WM will not spam logs in Serial
 // TODO: ESP (and Arduino?) deep sleep
 // TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, how to reset ESP using
 //       potentiometer, etc.
@@ -70,7 +69,7 @@ setup()
     // Request to reset wifi settings can come from WebUI and from Arduino (via potentiometer and switching from auto to
     // manual mode and vice versa)
     auto WiFiSettingsResetHandler = [&]() {
-        WiFiManager wifi_manager;
+        WiFiManager wifi_manager(DGB_STREAM);
         wifi_manager.erase();
         is_reboot_requested = true;
     };
@@ -110,7 +109,7 @@ void
 init_wifi()
 {
     // WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
-    WiFiManager wifiManager;
+    WiFiManager wifiManager(DGB_STREAM);
 
     // set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
     wifiManager.setAPCallback(configModeCallback);

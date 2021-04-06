@@ -39,6 +39,54 @@ BufferedLogger::clear()
     log_.clear();
 }
 
+void
+BufferedLogger::setDebugOutput(bool)
+{
+    // Dummy implementation
+}
+
+int
+BufferedLogger::available()
+{
+    // Dummy implementation
+    return 0;
+}
+
+int
+BufferedLogger::read()
+{
+    // Dummy implementation
+    return 0;
+}
+
+int
+BufferedLogger::peek()
+{
+    // Dummy implementation
+    return 0;
+}
+
+size_t
+BufferedLogger::readBytes(char*, size_t)
+{
+    // Dummy implementation
+    return 0;
+}
+
+size_t
+BufferedLogger::readBytes(uint8_t*, size_t)
+{
+    // Dummy implementation
+    return 0;
+}
+
+String
+BufferedLogger::readString()
+{
+    // Dummy implementation
+    return "";
+}
+
 size_t
 BufferedLogger::shrink()
 {

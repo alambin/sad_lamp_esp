@@ -305,7 +305,7 @@ ArduinoCommunication::reboot_arduino(uint8_t client_id)
             return false;
         });
     reconnect.response_timeout_handler = [&, client_id]() { web_socket_server_.send(client_id, FPSTR(error_timeout)); };
-    reconnect.request_start_time       = 0;  // Start immediately
+    reconnect.request_start_time       = millis() + arduino_reconnect_timeout;
     reconnect.response_timeout         = default_arduino_cmd_timeout;
     command_queue_.push(reconnect);
 }
