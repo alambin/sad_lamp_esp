@@ -35,7 +35,6 @@ private:
     void flash_arduino(uint8_t client_id, String const& path);
     void reboot_arduino(uint8_t client_id);
     void get_arduino_settings(uint8_t client_id);
-    void enable_arduino_logs(bool enable);
     void send_set_command(String const& set_command_name, uint8_t client_id, String const& parameters);
 
     WebSocketServer&               web_socket_server_;
@@ -45,7 +44,6 @@ private:
     std::array<char, buffer_size_> buffer_;
     uint16_t                       current_buf_position_{0};
     uint8_t                        reset_pin_;
-    bool                           arduino_logs_enabled_{true};
 
     std::queue<ArduinoCommand> command_queue_;
     String                     arduino_settings_json_;

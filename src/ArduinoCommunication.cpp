@@ -118,11 +118,6 @@ ArduinoCommunication::loop()
 void
 ArduinoCommunication::send(String const& message) const
 {
-    if (!arduino_logs_enabled_) {
-        DEBUG_PRINTLN(PSTR("Arduino logging is disabled. Skip sending \"") + message + '\"');
-        return;
-    }
-
     DEBUG_PRINTLN(PSTR("TO   ARDUINO: ") + message);
     Serial.println(message);
 }
@@ -149,24 +144,12 @@ ArduinoCommunication::receive_line()
                 buffer_[current_buf_position_++] = ch;
                 continue;
             }
-
-            // In case of using binary-based web-socket this code is not required.
-            //
-            // Replace non-printable symbols with their hex codes
-            // buffer_[current_buf_position_++] = '0';
-            // buffer_[current_buf_position_++] = 'x';
-            // buffer_[current_buf_position_++] = pgm_read_byte(&hex_chars[(ch & 0xF0) >> 4]);
-            // buffer_[current_buf_position_++] = pgm_read_byte(&hex_chars[(ch & 0x0F) >> 0]);
-            // buffer_[current_buf_position_++] = ' ';
-            // continue;
         }
 
         buffer_[current_buf_position_] = 0;
         current_buf_position_          = 0;
         String message{buffer_.data()};
-        if (arduino_logs_enabled_) {
-            DEBUG_PRINTLN(PSTR("FROM ARDUINO: ") + message);
-        }
+        DEBUG_PRINTLN(PSTR("FROM ARDUINO: ") + message);
 
         process_message_from_arduino(message);
     }
@@ -201,15 +184,6 @@ ArduinoCommunication::flash_arduino(uint8_t client_id, String const& path)
         DEBUG_PRINTLN(message);
         web_socket_server_.send(client_id, message);
         return;
-    }
-
-    // You can optionally disable logs from Arduino for time of flashing and subsequent reboot.
-    // When text-based web-socket is used, special (non printable) characters, printed by Arduino during reboot, caused
-    // web-socket crash. Currently binary-based web-socket is used, so this feature is not actual anymore.
-    constexpr bool should_diable_arduino_logs{false};
-
-    if (should_diable_arduino_logs) {
-        enable_arduino_logs(false);
     }
 
     Serial.begin(57600);
@@ -262,23 +236,6 @@ ArduinoCommunication::flash_arduino(uint8_t client_id, String const& path)
 
     DEBUG_PRINTLN(F("Flashing of Arduino is completed."));
     web_socket_server_.send(client_id, F("DONE"));
-
-    if (should_diable_arduino_logs) {
-        ArduinoCommand reconnect(
-            F("reconnect"),
-            [&]() { Serial.print(FPSTR(arduino_connect_cmd)); },
-            [&](String const& response) {
-                if (response == FPSTR(arduino_connect_ack)) {
-                    DEBUG_PRINTLN(F("Arduino is connected"));
-                    enable_arduino_logs(true);
-                    return true;
-                }
-                return false;
-            });
-        reconnect.request_start_time = millis() + arduino_reconnect_timeout;
-        reconnect.response_timeout   = default_arduino_cmd_timeout + 1000;
-        command_queue_.push(reconnect);
-    }
 }
 
 void
@@ -401,12 +358,6 @@ ArduinoCommunication::get_arduino_settings(uint8_t client_id)
     get_brightness_cmd.request_start_time = 0;  // Start immediately
     get_brightness_cmd.response_timeout   = default_arduino_cmd_timeout;
     command_queue_.push(get_brightness_cmd);
-}
-
-void
-ArduinoCommunication::enable_arduino_logs(bool enable)
-{
-    arduino_logs_enabled_ = enable;
 }
 
 void

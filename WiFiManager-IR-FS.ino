@@ -13,7 +13,6 @@
 // TODO: ESP (and Arduino?) deep sleep
 // TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, how to reset ESP using
 //       potentiometer, etc.
-// TODO: think about removing feature "disable logs from Arduino for time of flashing and subsequent reboot"
 // TODO: dialog-box showing list of files on ESP to pick up Arduino firmware
 
 // TODO-AGAIN: when ESP firmware is loaded on 100%, it often doesn't display result message.
