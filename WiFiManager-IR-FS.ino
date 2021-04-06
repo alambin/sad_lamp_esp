@@ -10,8 +10,11 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
+// TODO: what if user entered wrong password for WiFi? ESP will not be accessible at all. How to reset ESP? May be
+//       enable some command via Arduino (is it possible?). If not, may be do as on Yeelight laps (sequence of turn-on,
+//       turn-off periods for about 2 seconds)? Or the same sequence but via potentiometer?
+// TODO: set WebLogger for WM? So that WM will not spam logs in Serial
 // TODO: ESP (and Arduino?) deep sleep
-// TODO: implement reconnection in case WiFi is disconnected
 // TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, etc.
 // TODO: think about removing feature "disable logs from Arduino for time of flashing and subsequent reboot"
 // TODO: dialog-box showing list of files on ESP to pick up Arduino firmware
@@ -67,7 +70,7 @@ setup()
     web_server.set_handler(WebServer::Event::REBOOT_ESP, [&](String const& filename) { is_reboot_requested = true; });
     web_server.set_handler(WebServer::Event::RESET_WIFI_SETTINGS, [&](String const& filename) {
         WiFiManager wifi_manager;
-        wifi_manager.resetSettings();
+        wifi_manager.erase();
         is_reboot_requested = true;
     });
 }
@@ -107,6 +110,7 @@ init_wifi()
 
     // set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
     wifiManager.setAPCallback(configModeCallback);
+    wifiManager.setWiFiAutoReconnect(true);
 
     // Reset settings - wipe credentials for testing
     // wifiManager.resetSettings();

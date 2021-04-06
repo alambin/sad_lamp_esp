@@ -248,27 +248,27 @@ function handle_get_arduino_settings_response(response) {
   // Check for errors
   var server_response = "";
   if (time_str.startsWith("ERROR")) {
-    server_response += time_str + "; ";
+    server_response += "Get time error: " + time_str + "; ";
   } else {
     set_arduino_time(time_str);
     disable_arduino_time_controls(false);
   }
 
   if (alarm_str.startsWith("ERROR")) {
-    server_response += alarm_str + "; ";
+    server_response += "Get alarm error: " + alarm_str + "; ";
   } else {
     set_arduino_alarm(alarm_str);
   }
 
   if (sd_str.startsWith("ERROR")) {
-    server_response += sd_str + "; ";
+    server_response += "Get sunset duration error: " + sd_str + "; ";
   } else {
     set_arduino_sunrise_duration(sd_str);
     disable_arduino_sunrise_duration_controls(false);
   }
 
   if (brightness_str.startsWith("ERROR")) {
-    server_response += brightness_str + "; ";
+    server_response += "Get brightness error: " + brightness_str;
   } else {
     set_arduino_brightness(brightness_str);
   }
