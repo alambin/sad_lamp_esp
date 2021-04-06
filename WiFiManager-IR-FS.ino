@@ -10,15 +10,13 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: add some icon showing progress of INITIAL loading of data from Arduino?
-// TODO: think about proper synchronisation between Arduino and ESP. Ex. how to synchronise them after Arduino reboot?
-//       After ESP reboot? Etc.
+// TODO: ESP (and Arduino?) deep sleep
 // TODO: implement reconnection in case WiFi is disconnected
 // TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, etc.
 // TODO: think about removing feature "disable logs from Arduino for time of flashing and subsequent reboot"
 // TODO: dialog-box showing list of files on ESP to pick up Arduino firmware
 
-// DONE: when ESP firmware is loaded on 100%, it often doesn't display result message.
+// TODO-AGAIN: when ESP firmware is loaded on 100%, it often doesn't display result message.
 // BUG?: once I had 3 tabs in Chrome: File Upload, Settings and Debug log. After uploading ESP firmware, response from
 //       ESP was never delivered, even if I didn't perform reboot. Chrome was always showing some weird
 //       error(ERR_CONTENT_LENGTH_MISMATCH). Idk what helped. May be because I reflashed ESP not via air but via

@@ -73,7 +73,6 @@ table.details td,
 table.details th{
 border:#aaa 1px solid;
 padding-left: 10px;
-background:#fff;
 }
 table.details td.Help,
 table.details th.Help{
@@ -126,4 +125,46 @@ padding:0 0 0 10px;
   overflow:auto;
   white-space: pre;
   /* white-space: nowrap; */
+}
+
+.table_animation {
+  position: relative;
+}
+.inactive_table_background:before {
+  content: '';
+  display: block;
+  position: absolute;
+  z-index: 1000;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.3);
+}
+.loading:before {
+  border: 8px solid #f3f3f3;
+  border-radius: 50%;
+  border-top:8px solid #3498db;
+  -webkit-animation: spin 2s linear infinite; /*Safari*/
+  animation: spin 2s linear infinite;
+
+  content: '';
+  display: block;
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  top: calc(50% - 25px - 8px);
+  left: calc(50% - 25px - 8px);
+  z-index: 1001;
+}
+
+/* Safari */
+@-webkit-keyframes spin {
+  0% { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

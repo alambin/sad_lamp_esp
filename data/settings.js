@@ -223,6 +223,11 @@ function disable_arduino_settings_controls(disable) {
   disable_arduino_brightness_controls(disable);
 }
 
+function refresh_arduino_settings() {
+  toggle_loading_animation();
+  get_arduino_settings();
+}
+
 function get_arduino_settings() {
   disable_arduino_settings_controls(true);
   command_in_progress = get_arduino_settings_cmd;
@@ -275,6 +280,7 @@ function handle_get_arduino_settings_response(response) {
     _("arduino_settings_status").innerHTML = "Server response: DONE";
     _("arduino_settings_status").style.color = "green";
   }
+  toggle_loading_animation();
 }
 
 function set_arduino_time(time_str) {
@@ -455,4 +461,9 @@ function set_brightness() {
 function handle_set_arduino_brightness_response(response) {
   var view = _("arduino_settings_status");
   set_server_response(view, response);
+}
+
+function toggle_loading_animation() {
+  _("table_wrapper").classList.toggle("loading");
+  _("inactive_table_background").classList.toggle("inactive_table_background");
 }
