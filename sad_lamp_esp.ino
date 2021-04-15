@@ -10,19 +10,6 @@
 #include "src/WebSocketServer.h"
 #include "src/logger.h"
 
-// TODO: ESP (and Arduino?) deep sleep
-// TODO: extend help: how to generate binaries in Arduino IDE, which commands Ardunio supports, how to reset ESP using
-//       potentiometer, etc.
-// TODO: dialog-box showing list of files on ESP to pick up Arduino firmware
-
-// TODO-AGAIN: when ESP firmware is loaded on 100%, it often doesn't display result message.
-// BUG?: once I had 3 tabs in Chrome: File Upload, Settings and Debug log. After uploading ESP firmware, response from
-//       ESP was never delivered, even if I didn't perform reboot. Chrome was always showing some weird
-//       error(ERR_CONTENT_LENGTH_MISMATCH). Idk what helped. May be because I reflashed ESP not via air but via
-//       adapter. May be that I closed all tabs except of one. But something helped. In fact original code was not
-//       different from final, so reason is not in code change. May be simply ESP started rebooting faster, and because
-//       of that Chrome stopped giving error?
-
 namespace
 {
 constexpr uint8_t    RESET_PIN{0};
@@ -50,13 +37,9 @@ setup()
     }
     // Initiate communication with Arduino as soon as possible, right after Serial is initialized.
     arduino_communication.init();
-
     delay(3000);
 
-    // ESP BUG: by some reason when WiFi connects in STA mode ("station"), it ruins WiFi on some routers.
-    // Workaround - use another router, ex. mobile phone
     init_wifi();
-
     debug_server.init();
     SPIFFS.begin();
     web_server.init();

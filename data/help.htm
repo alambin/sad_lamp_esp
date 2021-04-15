@@ -20,39 +20,101 @@
   <table class="details">
     <caption>Help</caption>
     <tr class="Help">
-      <td class="Help">
-        <p align="justify">This is SAD-Lamp Web interface. You can configure SAD-Lamp, change its settings,
+      <td class="Help" style="text-align: justify;">
+        <p>This is SAD-Lamp Web interface. You can configure SAD-Lamp, change its settings,
           upload firmware to ESP and main board, etc.</p>
-        <p>Normally hardware serial port of ESP is connected to hardware serial port of Arduino, which makes impossible
-          to use logs via USB. Because of that you can use "Debug log" page to get logs from both: ESP and Arduino</p>
-        <p>Use "File Upload" to upload/delete/edit files to ESP using Web-UI.</p>
-        <p>
-          You can also establish FTP connection to SAD-Lamp, but there are some limitations:
-          <ul style="margin-top: -10px; margin-left: -20px;">
-            <li>You need to setup Filezilla(or other FTP client) to only allow 1 connection</li>
-            <li>Encryption is NOT supported, so you'll have to disable it in FTP client</li>
-            <li>Currently FTP connection is unstable</li>
-          </ul>
-        </p>
         <br>
-        <b>Notes:</b>
+
+        <b>Wi-Fi</b>
+        <p style="margin-top: 2px; margin-bottom: 2px;">By default when ESP doesn't have any WiFi settings, it creates
+          its own WiFi access point with name "SAD-Lamp_AP". You should connect to it (ex. using mobile phone) and
+          provide WiFi settings (access point name and password)</p>
+        <p style="margin-top: 2px;"><b>Note!</b> By some reason on some old WiFi routers when ESP connects to WiFi,
+          it ruins WiFi. This is hardware issue of ESP. Because of that, it is recommended to connect SAD-Lamp (as any
+          other IoT devices) to separate WiFi router.</p>
+        <br>
+
+        <b>SAD-Lamp modes</b>
+        <p style="margin-top: 2px; margin-bottom: 2px;">SAD-Lamp can work in one of two modes: automatic or manual.</p>
+        <p style="margin-top: 2px; margin-bottom: 2px;">If user moves handle (potentiometer) to set some brightness, it
+          is treated as manual mode. In this mode it is impossible to have sunrise effect or set brightness via WebUI.
+        </p>
+        <p style="margin-top: 2px;">If user switches handle to fixed zero position or moves it close to zero position,
+          it is treated as automatic mode. If nothing happens, SAD-Lamp will keep being turned off. But if' let's say,
+          time of alarm comes, then in this mode SAD-Lamp runs sunrise effect. Moreover, in this mode user can set
+          brightness via WebUI.</p>
+        <br>
+
+        <b>ESP and Arduino modules</b>
+        <p style="margin-top: 2px; margin-bottom: 2px;">SAD-Lamp has 2 modules (boards):</p>
         <ul style="margin-top: 2px; margin-left: -20px;">
-          <li>When flashing ESP via Arduino IDE you should choose Tools -> Flash Size-> "1MB (FS:128KB .....). You need
-            to have at least 128 KB for file system on ESP. If you will add more files to ESP, you will probably need to
-            choose option with bigger file system size."</li>
+          <li>ESP-01. This module runs Web-Server and WebUI on it. It has some files for WebUI (.html, .js, etc.). You
+            can update those files over the air (refer to "File uploading"). It is connected to Arduino module via
+            hardware serial port (because of that you can not use USB for debugging, when two modules are connected
+            together, for details refer to "Debugging"). ESP module is able to update its own firmware over the air. It
+            is also able to update formware of Arduino module over the air. To run OTA update use "Settings" page.</li>
+          <li>Arduino Nano. This module executes actual control of SAD-Lamp's LEDs brightness, handles user input (via
+            potentiometer), runs sunrise effect, tracks current temperature of LEDs to avoid overheating, etc.</li>
+        </ul>
+        <br>
+
+        <b>Reset ESP to default settings</b>
+        <p style="margin-top: 2px;">It is possible that WiFi settings are outdated or user configured them in wrong way
+          and WebUI is not accessible. In this case you can reset ESP settings to default (ex. WiFi settings). Normally
+          you can do it via WebUI but if you don't have access to it, you need to use handle on lamp (potentiometer) and
+          switch 5 times between automatic and manual modes. You should turn on each mode for 2-4 seconds.</p>
+        <br>
+
+        <b>File uploading</b>
+        <ul style="margin-top: 2px; margin-left: -20px;">
+          <li>Use "File Upload" to upload/delete/edit files to ESP using Web-UI.</li>
+          <li>You can also establish FTP connection to SAD-Lamp, but there are some limitations:
+            <ul style="margin-top: 0px">
+              <li>You need to setup Filezilla(or other FTP client) to only allow 1 connection</li>
+              <li>Encryption is NOT supported, so you'll have to disable it in FTP client</li>
+              <li>Currently FTP connection is unstable</li>
+            </ul>
+          </li>
+        </ul>
+        <br>
+
+        <b>Flashing</b>
+        <ul style="margin-top: 2px; margin-left: -20px;">
+          <li>When flashing ESP via Arduino IDE you should choose Tools -> Flash Size-> "1MB (FS:128KB .....). You
+            need to have at least 128 KB for file system on ESP. If you will add more files to ESP, you will probably
+            need to choose option with bigger file system size."</li>
           <li>To flash ESP file system via Arduino IDE, you should choose Tools -> ESP8266 Sketch Data Upload. It will
             take "data" subfolder from folder of your sketch and copy its content to SPIFFS of ESP</li>
-          <li>When you flash firmware or code to ESP via USB adapter, you need to change switch to "PROG" position. Also
-            you need to unplug it and plug again before each flashing.</li>
-          <li>By default when ESP doesn't have any WiFi settings, it creates its own WiFi access point with name
-            "SAD-Lamp_AP". You should connect to it (ex. using mobile phone) and provide WiFi settings (access point
-            name and password)</li>
+          <li>When you flash firmware or code to ESP via USB adapter, you need to change switch to "PROG" position.
+            Also you need to unplug it and plug again before each flashing.</li>
+          <li>To generate binary for choosen sketch (Arduino or ESP firmware), in Arduino IDE choose Stetch -> Export
+            Compiled Binary. It will generate binary in root folder of selected sketch.</li>
         </ul>
         <br>
+
+        <b>Debugging</b>
+        <p style="margin-top: 2px;">Normally hardware serial port of ESP is connected to hardware serial port of
+          Arduino, which makes impossible to use logs via USB. Because of that you can use "Debug log" page to get
+          logs from both: ESP and Arduino</p>
+        <br>
+
         <b>Arduino supported commands:</b>
-        <ul style="margin-top: 2px; margin-left: -20px;">
-          <li>asdasd</li>
+        <ul style="margin-top: 3px; margin-left: -20px;">
+          <li>"ESP: st HH:MM:SS DD/MM/YYYY" - set current time</li>
+          <li>"ESP: gt" - get current time (HH:MM:SS DD/MM/YYYY)</li>
+          <li>"ESP: sa HH:MM WW" - set alarm on specified time (WW - day of week mask, hex)</li>
+          <li>"ESP: ga" - get alarm (E HH:MM WW, E = "E" if alarm enabled, "D" if disabled)</li>
+          <li>"ESP: ea E" enable alarm (if E = "E", enable alarm, if E = "D", disable)</li>
+          <li>"ESP: ta" toggle alarm On/Off</li>
+          <li>"ESP: ssd MMMM" set Sunrise duration in minutes (0-1440)</li>
+          <li>"ESP: gsd" get Sunrise duration (MMMM)</li>
+          <li>"ESP: sb BBBB" set brightness (0-1023). Not allowed in manual lamp control mode</li>
+          <li>"ESP: gb" get current brightness (M BBBB, M = "M" if lamp in manual mode, "A" - in automatic mode)
+          </li>
+          <li>"ESP: sff FF" set fan PWM frequency (used only for DOUT PWM)</li>
+          <li>"ESP: sfs NN" set fan PWM steps number (steps per PWM period) (used only for DOUT PWM)</li>
         </ul>
+
       </td>
     </tr>
   </table>
