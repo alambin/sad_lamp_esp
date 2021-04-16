@@ -80,15 +80,25 @@
 
         <b>Flashing</b>
         <ul style="margin-top: 2px; margin-left: -20px;">
-          <li>When flashing ESP via Arduino IDE you should choose Tools -> Flash Size-> "1MB (FS:128KB .....). You
-            need to have at least 128 KB for file system on ESP. If you will add more files to ESP, you will probably
-            need to choose option with bigger file system size."</li>
-          <li>To flash ESP file system via Arduino IDE, you should choose Tools -> ESP8266 Sketch Data Upload. It will
-            take "data" subfolder from folder of your sketch and copy its content to SPIFFS of ESP</li>
-          <li>When you flash firmware or code to ESP via USB adapter, you need to change switch to "PROG" position.
-            Also you need to unplug it and plug again before each flashing.</li>
+          <li>To compile code for Arduino in Arduino IDE choolse Tools -> Board -> Arduino Nano.</li>
+          <li>To compile code for ESP-01 in Arduino IDE choolse Tools -> Board -> Generic ESP8266 Module.</li>
+          <li>Before flashing Arduino in Arduino IDE choose Tools -> Processor -> ATmega328P (Old Bootloader).</li>
           <li>To generate binary for choosen sketch (Arduino or ESP firmware), in Arduino IDE choose Stetch -> Export
             Compiled Binary. It will generate binary in root folder of selected sketch.</li>
+          <li>When flashing ESP via Arduino IDE you should choose Tools -> Flash Size-> "1MB (FS:144KB .....)". You
+            need to have at least 144 KB for file system on ESP. If you will add more files to ESP, you will probably
+            need to choose option with bigger file system size. If you have weird issues when trying to upload file to
+            ESP via WebUI, it can be related to insufficient file system size. Try to increase it.</li>
+          <li>Flash space requirements. It is required that in ESP flash at the same time it is possible to place
+            current firmware plus, firmware that uploaded over-the-air (ESP first needs to receive entire file of
+            firmware and store it on flash). Besides that, file system is also stored on flash. It means that if your
+            file system is 144Kb, current and firmware is 440Kb, then it will NOT be possible to use OTA for flashing -
+            only regular slashing using USB adapter. Because of that original module ESP-01 was upgraded to have 4Mb
+            flash instead of 1Mb of default flash.</li>
+          <li>To flash ESP file system via Arduino IDE, you should choose Tools -> ESP8266 Sketch Data Upload. It will
+            take "data" subfolder from folder of your sketch and copy its content to SPIFFS of ESP.</li>
+          <li>When you flash firmware or code to ESP via USB adapter, you need to change switch to "PROG" position.
+            Also you need to unplug it and plug again before each flashing.</li>
         </ul>
         <br>
 

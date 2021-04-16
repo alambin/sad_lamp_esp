@@ -69,6 +69,8 @@ loop()
     ftp_server.handleFTP();
 
     if (is_reboot_requested) {
+        // If reboot of ESP is requested, it is triggered not immediately, but with reboot_delay. It lets ESP to finish
+        // some actions, ex. sending responses to Web-clients, etc.
         static unsigned long reboot_request_time = millis();
         if (millis() - reboot_request_time >= reboot_delay) {
             ESP.restart();

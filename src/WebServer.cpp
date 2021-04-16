@@ -136,15 +136,32 @@ WebServer::init()
         F("/update"),
         HTTP_POST,
         [this]() {
-            web_server_.sendHeader(F("Connection"), F("close"));
-            web_server_.sendHeader(F("Access-Control-Allow-Origin"), "*");
-            reply_ok_with_msg(Update.hasError() ? F("FAIL") : F("ESP firmware update completed! Rebooting..."));
-            ESP.restart();
+            // This code is from example. Not sure if we really need it
+            //
+            // web_server_.sendHeader(F("Connection"), F("close"));
+            // web_server_.sendHeader(F("Access-Control-Allow-Origin"), "*");
+            // reply_ok_with_msg(Update.hasError() ? F("FAIL") : F("ESP firmware update completed! Rebooting..."));
+
+            // If there were errors during uploading of file, this is the only place, where we can send message to
+            // client about it
+            if (esp_firmware_upload_error_.length() != 0) {
+                DEBUG_PRINTLN(PSTR("Sending error to WebUI: ") + esp_firmware_upload_error_);
+                reply_server_error(esp_firmware_upload_error_);
+                esp_firmware_upload_error_ = "";
+            }
+            else {
+                reply_ok_with_msg(F("ESP firmware update completed! Rebooting..."));
+                DEBUG_PRINTLN(F("Rebooting..."));
+                handle_reboot_esp();  // Schedule reboot
+            }
         },
-        [this]() { habdle_esp_sw_upload(); });
+        [this]() { handle_esp_sw_upload(); });
 
     web_server_.on(F("/reset_wifi_settings"), HTTP_POST, [this]() { handle_reset_wifi_settings(); });
-    web_server_.on(F("/reboot_esp"), HTTP_POST, [this]() { handle_reboot_esp(); });
+    web_server_.on(F("/reboot_esp"), HTTP_POST, [this]() {
+        reply_ok();
+        handle_reboot_esp();
+    });
 
     web_server_.begin();
     DEBUG_PRINTLN(F("Web server initialized"));
@@ -492,31 +509,75 @@ WebServer::handle_file_read(String path)
 }
 
 void
-WebServer::habdle_esp_sw_upload()
+WebServer::handle_esp_sw_upload()
 {
+    // NOTE! There is no way in HTML to stop client from uploading file. So, if it starts uploading of too big file and
+    // ESP, as a server, identifies it, the only thing ESP can do is to mark this uploaded file as invalid, receive it
+    // completely and only then send error. But error should be sent only once, otherwise when client will finish
+    // uploading it will receive all error messages, sent during upload, at one time
+
+    if (web_server_.args() < 1) {
+        esp_firmware_upload_error_ = F("ERROR: file size is not provided!");
+        return;
+    }
+
     HTTPUpload& upload = web_server_.upload();
     if (upload.status == UPLOAD_FILE_START) {
+        auto file_size = web_server_.arg(F("file_size")).toInt();
+        if (!Update.begin(file_size)) {
+            Update.end();
+            Update.printError(DGB_STREAM);
+            esp_firmware_upload_error_ =
+                PSTR("ERROR: not enough space! Available: ") + String(ESP.getFreeSketchSpace());
+            return;
+        }
+
         DGB_STREAM.setDebugOutput(true);
         WiFiUDP::stopAll();
-        DEBUG_PRINTLN(PSTR("Update: ") + upload.filename);
-        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-        if (!Update.begin(maxSketchSpace)) {  // start with max available size
-            Update.printError(DGB_STREAM);
-        }
+        DEBUG_PRINTLN(PSTR("Start uploading file: ") + upload.filename);
+        esp_firmware_upload_error_ = "";
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (esp_firmware_upload_error_.length() != 0) {
+            // Ignore uploading of file which is already marked as invalid. Do NOT send any errors to client here,
+            // because there is no way to stop uploading but all sent messages will come together to client when it
+            // finish uploading
+            return;
+        }
+
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+            Update.end();
             Update.printError(DGB_STREAM);
+            esp_firmware_upload_error_ = PSTR("ERROR: can not write file! Update error ") + String(Update.getError());
+            DGB_STREAM.setDebugOutput(false);
+            return;
         }
     }
     else if (upload.status == UPLOAD_FILE_END) {
+        if (esp_firmware_upload_error_.length() != 0) {
+            // Ignore finalizing of upload of file which is already marked as invalid. Do NOT send any errors to client
+            // here, because there is no way to stop uploading but all sent messages will come together to client when
+            // it finish uploading
+            return;
+        }
+
         if (Update.end(true)) {  // true to set the size to the current progress
-            DEBUG_PRINTLN(PSTR("Update Success: ") + String(upload.totalSize) + PSTR("\nRebooting..."));
+            DEBUG_PRINTLN(PSTR("Update completed. Uploaded file size: ") + String(upload.totalSize));
         }
         else {
+            Update.end();
             Update.printError(DGB_STREAM);
+            esp_firmware_upload_error_ =
+                PSTR("ERROR: can not finalize file! Update error ") + String(Update.getError());
         }
         DGB_STREAM.setDebugOutput(false);
+    }
+    else {
+        Update.end();
+        Update.printError(DGB_STREAM);
+        esp_firmware_upload_error_ = F("ERROR: uploading of file was aborted");
+        DGB_STREAM.setDebugOutput(false);
+        return;
     }
     yield();
 }
@@ -536,8 +597,6 @@ WebServer::handle_reset_wifi_settings()
 void
 WebServer::handle_reboot_esp()
 {
-    reply_ok();
-
     DEBUG_PRINTLN(F("handle_reboot_esp"));
     if (handlers_[static_cast<size_t>(Event::REBOOT_ESP)] != nullptr) {
         handlers_[static_cast<size_t>(Event::REBOOT_ESP)]("");

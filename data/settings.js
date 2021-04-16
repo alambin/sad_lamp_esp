@@ -54,6 +54,7 @@ connection.onmessage = function (message) {
 var uploaded_file_size = 0;
 
 var command_in_progress = "";
+var upload_esp_firmware_cmd = "upload_esp_firmware";
 var upload_arduino_firmware_cmd = "upload_arduino_firmware";
 var reboot_arduino_cmd = "reboot_arduino";
 var get_arduino_settings_cmd = "get_arduino_settings";
@@ -68,6 +69,18 @@ function _(element) {
 }
 
 function upload_esp_file() {
+  if (_("uploaded_file_name").value.length == 0) {
+    // User pressed Cancel
+    return;
+  }
+
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    _("uploaded_file_name").value = "";
+    return;
+  }
+  command_in_progress = upload_esp_firmware_cmd;
+
   var file = _("uploaded_file_name").files[0];
   uploaded_file_size = file.size;
   // alert(file.name+" | "+file.size+" | "+file.type);
@@ -79,8 +92,10 @@ function upload_esp_file() {
   ajax.addEventListener("load", upload_complete_handler, false);
   ajax.addEventListener("error", upload_error_handler, false);
   ajax.addEventListener("abort", upload_abort_handler, false);
-  ajax.open("POST", "/update");
+  ajax.open("POST", "/update?file_size=" + uploaded_file_size);
   ajax.send(formdata);
+
+  _("upload_status").style.color = "black";
 }
 
 function upload_progress_handler(event) {
@@ -96,17 +111,35 @@ function upload_progress_handler(event) {
 }
 
 function upload_complete_handler(event) {
+  command_in_progress = "";
   _("upload_status").innerHTML = event.target.responseText;
+  if (event.target.responseText.startsWith("ERROR")) {
+    _("upload_status").style.color = "red";
+  } else {
+    _("upload_status").style.color = "green";
+    setTimeout(function () {
+      window.location.href = "/";
+    }, 5000);
+  }
+
   _("upload_progress_bar").value = 0; //will clear progress bar after successful upload
-  window.location.href = "/";
+  _("uploaded_file_name").value = "";
 }
 
 function upload_error_handler(event) {
+  command_in_progress = "";
   _("upload_status").innerHTML = "Upload Failed!";
+  _("upload_status").style.color = "red";
+  _("upload_progress_bar").value = 0;
+  _("uploaded_file_name").value = "";
 }
 
 function upload_abort_handler(event) {
+  command_in_progress = "";
   _("upload_status").innerHTML = "Upload Aborted!";
+  _("upload_status").style.color = "red";
+  _("upload_progress_bar").value = 0;
+  _("uploaded_file_name").value = "";
 }
 
 function upload_arduino_file() {
@@ -236,6 +269,11 @@ function disable_arduino_settings_controls(disable) {
 }
 
 function refresh_arduino_settings() {
+  if (command_in_progress.length != 0) {
+    alert("ERROR: command \"" + command_in_progress + "\" is still in progress");
+    return;
+  }
+
   toggle_loading_animation();
   get_arduino_settings();
 }

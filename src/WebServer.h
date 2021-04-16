@@ -41,7 +41,7 @@ private:
     void handle_file_delete();
     void handle_file_upload();
     bool handle_file_read(String path);
-    void habdle_esp_sw_upload();
+    void handle_esp_sw_upload();
     void handle_reset_wifi_settings();
     void handle_reboot_esp();
 
@@ -49,6 +49,7 @@ private:
     ESP8266WebServer                                                     web_server_;
     File                                                                 upload_file_;
     std::array<EventHandler, static_cast<uint8_t>(Event::NUM_OF_EVENTS)> handlers_;
+    String                                                               esp_firmware_upload_error_;
 };
 
 #endif  // WEBSERVER_H_
